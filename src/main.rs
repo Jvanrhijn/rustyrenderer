@@ -1,8 +1,10 @@
 use std::mem;
+mod geo;
 extern crate image;
 
 
-fn line(mut x0: u32, mut y0: u32, mut x1: u32, mut y1: u32, img: &mut image::RgbImage, pix: image::Rgb<u8>) {
+fn line(mut x0: u32, mut y0: u32, mut x1: u32, mut y1: u32,
+        img: &mut image::RgbImage, pix: image::Rgb<u8>) {
     let steep = (x1 as i32 - x0 as i32).abs() < (y1 as i32 - y0 as i32).abs();
     if steep {
         mem::swap(&mut x0, &mut y0);

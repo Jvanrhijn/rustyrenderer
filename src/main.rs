@@ -33,12 +33,12 @@ fn main() {
 
     let mut imgbuf = image::RgbImage::new(imgx, imgy);
 
-    let vec = geo::Vec3f::from_vec(&mut vec![1., 2., 3.]);
-    println!("vec = {}", vec);
-
     line(90, 20, 80, 90, &mut imgbuf, image::Rgb([255, 255, 255]));
     line(20, 13, 40, 80, &mut imgbuf, image::Rgb([255, 0, 0]));
     line(80, 40, 13, 20, &mut imgbuf, image::Rgb([255, 0, 0]));
+    let head = model::Obj::from_file("obj/african_head.obj");
+    println!("{:?}", head.face(0));
+
     imgbuf.save("test.png").unwrap();
 }
 

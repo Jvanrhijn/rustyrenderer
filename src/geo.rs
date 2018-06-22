@@ -184,6 +184,8 @@ impl<T: fmt::Display> fmt::Display for Vec3<T> {
 // typedefs
 pub type Vec3f = Vec3<f64>;
 pub type Vec2f = Vec2<f64>;
+pub type Vec2i = Vec2<i32>;
+pub type Vec3i = Vec3<i32>;
 
 #[cfg(test)]
 mod test {

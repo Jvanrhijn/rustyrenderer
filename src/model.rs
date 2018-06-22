@@ -1,39 +1,64 @@
-use std::path::Path;
+use std;
 use std::vec;
+use std::io::prelude::*;
+use std::str::FromStr;
+use std::io;
+use std::io::BufReader;
+use std::fs::File;
 use geo;
-extern crate tobj;
 
 pub struct Obj {
     pub nvert: usize,
     pub nfaces: usize,
     pub vertices: vec::Vec<geo::Vec3f>,
-    mesh : tobj::Mesh,
+    pub faces: vec::Vec<geo::Vec3i>,
 }
 
 impl Obj {
-    pub fn from_file(fpath: &str) -> Obj {
-        let objf = tobj::load_obj(&Path::new(fpath));
-        let (models, _materials) = objf.expect("Obj file is corrupted");
-        let mesh = models[0].mesh.clone();
-        let nvert = mesh.positions.len()/3;
-        let nfaces = mesh.indices.len();
+    pub fn from_file(fpath: &str) -> io::Result<Obj> {
+        let file = File::open(fpath)?;
+        let buf_reader = BufReader::new(file);
         let mut vertices = vec::Vec::<geo::Vec3f>::new();
-        for i in 0..nvert {
-            println!("{} {} {} {}", i, &mesh.positions[i*3], &mesh.positions[i*3+1], &mesh.positions[i*3+2]);
-            let x = mesh.positions[i*3].clone().into();
-            let y = mesh.positions[i*3+1].clone().into();
-            let z = mesh.positions[i*3+2].clone().into();
-            vertices.push(geo::Vec3f::new(x, y, z));
+        let mut faces = vec::Vec::<geo::Vec3i>::new();
+        for line in buf_reader.lines() {
+            let line = line.unwrap();
+            if line.len() < 3 {
+                continue;
+            }
+            let prefix = &line[..2];
+            match prefix {
+                "v " => vertices.push(geo::Vec3f::from_vec(&Obj::collect_vec::<f64>(&line))),
+                "f " => faces.push(geo::Vec3i::from_vec(&Obj::collect_face(&line))),
+                _ => continue
+            };
         }
-        Obj{nvert, nfaces, vertices, mesh}
+        Ok(Obj{nvert: vertices.len(), nfaces: faces.len(), vertices, faces})
     }
 
-    pub fn face(self, i: usize) -> vec::Vec<u32> {
-        vec![self.mesh.indices[3*i], self.mesh.indices[3*i+1], self.mesh.indices[3*i+2]]
+    pub fn face(&self, i: usize) -> geo::Vec3i {
+        self.faces[i].clone()
     }
 
-    pub fn vert(self, i: usize) -> geo::Vec3f {
+    pub fn vert(&self, i: usize) -> geo::Vec3f {
         self.vertices[i].clone()
+    }
+
+    fn collect_vec<T>(s: &str) -> vec::Vec<T>
+        where T: FromStr,
+              <T as std::str::FromStr>::Err : std::fmt::Debug
+    {
+        s[2..].split_whitespace().map(|x| x.parse::<T>().unwrap()).collect()
+    }
+
+    fn collect_face(s: &str) -> vec::Vec<i32> {
+        let terms: Vec<&str> = s[2..].split_whitespace().collect();
+        let mut vec = vec::Vec::<i32>::new();
+        for i in 0..3 {
+            let indices = terms[i].split("/")
+                .map(|x| x.parse::<i32>().unwrap());
+            vec.push(indices.collect::<vec::Vec<i32>>()[0]-1); // indices in wavefron start with 1
+        }
+        vec
     }
 }
 

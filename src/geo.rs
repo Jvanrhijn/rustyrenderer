@@ -8,8 +8,8 @@ impl<T> Number<T> for T where T: Copy + ops::Add<Output=T> + ops::Mul<Output=T> 
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Vec2<T> {
-    x: T,
-    y: T,
+    pub x: T,
+    pub y: T,
 }
 
 impl<T> Vec2<T>
@@ -87,9 +87,9 @@ impl<T: fmt::Display> fmt::Display for Vec2<T> {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Vec3<T>
 {
-    x: T,
-    y: T,
-    z: T
+    pub x: T,
+    pub y: T,
+    pub z: T
 }
 
 impl<T> Vec3<T>
@@ -229,8 +229,6 @@ mod test {
     fn cross() {
         let first = Vec3f::new(1.0, 2.0, 3.0);
         let second = Vec3f::new(2.0, 3.0, 4.0);
-        let cross = first.cross(&second);
-
         assert_eq!(first.cross(&second).dot(&first), 0 as f64);
         assert_eq!(first.cross(&second).dot(&second), 0 as f64);
         assert_eq!(second.cross(&first), (&first.cross(&second))*(-1 as f64));

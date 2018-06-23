@@ -3,8 +3,27 @@ use std::vec;
 use std::convert;
 use std::fmt;
 
-pub trait Number<T>: Copy + ops::Add<Output=T> + ops::Mul<Output=T> + ops::Sub<Output=T> + ops::Div<Output=T>{}
-impl<T> Number<T> for T where T: Copy + ops::Add<Output=T> + ops::Mul<Output=T> + ops::Sub<Output=T> + ops::Div<Output=T> {}
+pub trait Number<T>: Copy
++ ops::Add<Output=T> + ops::Mul<Output=T> + ops::Sub<Output=T> + ops::Div<Output=T>
++ convert::Into<f64> {}
+
+impl<T> Number<T> for T where T: Copy + ops::Add<Output=T> + ops::Mul<Output=T> + ops::Sub<Output=T> + ops::Div<Output=T>
++ convert::Into<f64> {}
+
+pub trait Vector<'a, T>
+    where &'a Self: ops::Mul<&'a Self, Output=T> + 'a,
+                 T: Number<T>
+{
+    fn from_vec(vec: &vec::Vec<T>) -> Self;
+
+    fn dot(&'a self, other: &'a Self) -> T {
+        self*other
+    }
+
+    fn norm(&'a self) -> f64 {
+        (self.dot(self).into()).sqrt()
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Vec2<T> {
@@ -16,20 +35,16 @@ impl<T> Vec2<T>
     where T: Number<T>
 {
     pub fn new(x: T, y: T) -> Vec2<T> {
-        Vec2{x, y}
+        Vec2 { x, y }
     }
 
-    pub fn from_vec(vec: &vec::Vec<T>) -> Vec2<T> {
-        if vec.len() != 2 {
-            panic!("Can only initialize Vec2 from std::Vec if std::Vec has 2 elements");
-        }
-        Vec2::new(vec[0].clone(), vec[1].clone())
+    pub fn normalize(self) -> Vec2<f64> {
+        let norm = self.norm();
+        Vec2::<f64>{x: self.x.into()/norm, y: self.y.into()/norm}
     }
 
-    pub fn dot(&self, other: &Vec2<T>) -> T {
-        self*other
-    }
 }
+
 
 impl<'a, 'b, T> ops::Add<&'b Vec2<T>> for Vec2<T>
     where T: Number<T>
@@ -82,6 +97,19 @@ impl<T: fmt::Display> fmt::Display for Vec2<T> {
     }
 }
 
+impl<'a, T: 'a> Vector<'a, T> for Vec2<T>
+    where T: Number<T> + 'a
+{
+
+    fn from_vec(vec: &vec::Vec<T>) -> Vec2<T> {
+        if vec.len() != 2 {
+            panic!("Can only initialize Vec2 from std::Vec if std::Vec has 2 elements");
+        }
+        Vec2::new(vec[0].clone(), vec[1].clone())
+    }
+
+}
+
 // Vec3 impl
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -106,10 +134,6 @@ impl<T> Vec3<T>
         Vec3{x: vec[0].clone(), y: vec[1].clone(), z: vec[2].clone()}
     }
 
-    pub fn norm(&self) -> f64 {
-        (self.x*self.x + self.y*self.y + self.z*self.z).into().sqrt()
-    }
-
     pub fn normalize(self) -> Vec3<f64> {
         let norm = self.norm();
         Vec3::<f64>{x: self.x.into()/norm, y: self.y.into()/norm, z: self.z.into()/norm}
@@ -122,9 +146,6 @@ impl<T> Vec3<T>
         Vec3::<T>{x, y, z}
     }
 
-    pub fn dot(&self, other: &Vec3<T>) -> T {
-        self*other
-    }
 }
 
 impl<'a, 'b, T> ops::Add<&'b Vec3<T>> for &'a Vec3<T>
@@ -179,6 +200,20 @@ impl<T: fmt::Display> fmt::Display for Vec3<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Vec3(x: {}, y: {}, z: {})", self.x, self.y, self.z)
     }
+}
+
+impl<'a, T: 'a> Vector<'a, T> for Vec3<T>
+    where T: Number<T> + 'a
+{
+
+    fn from_vec(vec: &vec::Vec<T>) -> Vec3<T>
+    {
+        if vec.len() != 3 {
+            panic!("Can only initialize Vec3 from std::Vec if std::Vec has 3 elements");
+        }
+        Vec3::new(vec[0].clone(), vec[1].clone(), vec[2].clone())
+    }
+
 }
 
 // typedefs

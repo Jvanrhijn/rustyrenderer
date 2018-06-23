@@ -1,6 +1,7 @@
 use std::mem;
 use std::cmp;
 mod geo;
+use geo::Vector;
 mod model;
 extern crate image;
 

@@ -66,5 +66,14 @@ impl Obj {
 mod tests {
     use super::*;
 
+    #[test]
+    fn load_obj() {
+        let obj = Obj::from_file("obj/african_head.obj").unwrap();
+        assert_eq!(obj.nvert, 1258);
+        assert_eq!(obj.nfaces, 2492);
+        assert_eq!(obj.vert(0), geo::Vec3f::new(-0.000581696, -0.734665, -0.623267));
+        assert_eq!(obj.face(0), geo::Vec3i::new(23, 24, 25));
+    }
+
 }
 

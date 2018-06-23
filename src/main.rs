@@ -29,12 +29,12 @@ fn line(mut x0: u32, mut y0: u32, mut x1: u32, mut y1: u32,
 
 
 fn main() {
-    let imgx = 500;
-    let imgy = 500;
+    let imgx = 1000;
+    let imgy = 1000;
 
     let mut imgbuf = image::RgbImage::new(imgx, imgy);
 
-    let head = model::Obj::from_file("obj/african_head.obj").unwrap();
+    let head = model::Obj::from_file("obj/diablo3_pose.obj").unwrap();
 
     for i in 0..head.nfaces {
         let face = head.face(i);
@@ -49,6 +49,6 @@ fn main() {
             line(x0, y0, x1, y1, &mut imgbuf, image::Rgb([255, 255, 255]));
         }
     }
-    imgbuf.save("test.png").unwrap();
+    image::imageops::flip_vertical(&imgbuf).save("test.png").expect("Failed to save image");
 }
 

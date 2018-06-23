@@ -27,6 +27,20 @@ fn line(mut x0: u32, mut y0: u32, mut x1: u32, mut y1: u32,
     }
 }
 
+fn triangle(face: &geo::Vec3i, model: &model::Obj, img: &mut image::RgbImage, pix: image::Rgb<u8>) {
+    let (imgx, imgy) = img.dimensions();
+    let face = vec![face.x, face.y, face.z];
+    for j in 0..3 {
+        let v0 = model.vert(face[j] as usize);
+        let v1 = model.vert(face[(j+1) % 3] as usize);
+        let x0 = cmp::min(((v0.x + 1.)*(imgx as f64)/2.) as u32, imgx-1);
+        let y0 = cmp::min(((v0.y + 1.)*(imgy as f64)/2.) as u32, imgy-1);
+        let x1 = cmp::min(((v1.x + 1.)*(imgx as f64)/2.) as u32, imgx-1);
+        let y1 = cmp::min(((v1.y + 1.)*(imgy as f64)/2.) as u32, imgy-1);
+        line(x0, y0, x1, y1, img, pix);
+    }
+}
+
 
 fn main() {
     let imgx = 1000;
@@ -38,16 +52,7 @@ fn main() {
 
     for i in 0..head.nfaces {
         let face = head.face(i);
-        let face = vec![face.x, face.y, face.z];
-        for j in 0..3 {
-            let v0 = head.vert(face[j] as usize);
-            let v1 = head.vert(face[(j+1) % 3] as usize);
-            let x0 = cmp::min(((v0.x + 1.)*(imgx as f64)/2.) as u32, imgx-1);
-            let y0 = cmp::min(((v0.y + 1.)*(imgy as f64)/2.) as u32, imgy-1);
-            let x1 = cmp::min(((v1.x + 1.)*(imgx as f64)/2.) as u32, imgx-1);
-            let y1 = cmp::min(((v1.y + 1.)*(imgy as f64)/2.) as u32, imgy-1);
-            line(x0, y0, x1, y1, &mut imgbuf, image::Rgb([255, 255, 255]));
-        }
+        triangle(&face, &head, &mut imgbuf, image::Rgb([255, 255, 255]));
     }
     image::imageops::flip_vertical(&imgbuf).save("test.png").expect("Failed to save image");
 }

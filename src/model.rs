@@ -1,65 +1,102 @@
-use std;
 use std::vec;
-use std::io::prelude::*;
-use std::str::FromStr;
-use std::io;
-use std::io::BufReader;
-use std::fs::File;
+use std::mem;
+use std::convert;
+extern crate num;
 use geo;
+use image;
 
-pub struct Obj {
-    pub nvert: usize,
-    pub nfaces: usize,
-    pub vertices: vec::Vec<geo::Vec3f>,
-    pub faces: vec::Vec<geo::Vec3i>,
+pub trait Polygon<T>
+{
+    fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]);
+
+    fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]);
+
+    fn vertices(&self) -> vec::Vec<&geo::Vec3<T>>;
 }
 
-impl Obj {
-    pub fn from_file(fpath: &str) -> io::Result<Obj> {
-        let file = File::open(fpath)?;
-        let buf_reader = BufReader::new(file);
-        let mut vertices = vec::Vec::<geo::Vec3f>::new();
-        let mut faces = vec::Vec::<geo::Vec3i>::new();
-        for line in buf_reader.lines() {
-            let line = line.unwrap();
-            if line.len() < 3 {
-                continue;
+pub struct Line<T> {
+    start: geo::Vec3<T>,
+    end: geo::Vec3<T>,
+}
+
+impl<T> Line<T> {
+
+    pub fn new(start: geo::Vec3<T>, end: geo::Vec3<T>) -> Line<T> {
+        Line{start, end}
+    }
+
+}
+
+impl<T> Polygon<T> for Line<T>
+    where T: geo::Number<T> + num::ToPrimitive
+{
+
+    fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
+        // Inefficient implementation of Bresenham
+        let Line{start, end} = self;
+        let (mut x0, mut y0) = (start.x.to_u32().unwrap(), start.y.to_u32().unwrap());
+        let (mut x1, mut y1) = (end.x.to_u32().unwrap(), end.y.to_u32().unwrap());
+        let steep = (x1 as i32 - x0 as i32).abs() < (y1 as i32 - y0 as i32).abs();
+        if steep {
+            mem::swap(&mut x0, &mut y0);
+            mem::swap(&mut y1, &mut x1);
+        }
+        if x0 > x1 {
+            mem::swap(&mut x0, &mut x1);
+            mem::swap(&mut y0, &mut y1);
+        }
+        for x in x0..=x1 {
+            let t: f64 = (x - x0) as f64 / ((x1 - x0) as f64);
+            let y = ((y0 as f64)*(1. - t) + (y1 as f64)*t) as u32;
+            if steep {
+                img.put_pixel(y, x, image::Rgb::<u8>(*color));
+            } else {
+                img.put_pixel(x, y, image::Rgb::<u8>(*color));
             }
-            let prefix = &line[..2];
-            match prefix {
-                "v " => vertices.push(geo::Vec3f::from_vec(&Obj::collect_vec::<f64>(&line))),
-                "f " => faces.push(geo::Vec3i::from_vec(&Obj::collect_face(&line))),
-                _ => continue
-            };
         }
-        Ok(Obj{nvert: vertices.len(), nfaces: faces.len(), vertices, faces})
     }
 
-    pub fn face(&self, i: usize) -> geo::Vec3i {
-        self.faces[i].clone()
+    fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
+
     }
 
-    pub fn vert(&self, i: usize) -> geo::Vec3f {
-        self.vertices[i].clone()
+    fn vertices(&self) -> vec::Vec<&geo::Vec3<T>> {
+        vec![&self.start, &self.end]
     }
 
-    fn collect_vec<T>(s: &str) -> vec::Vec<T>
-        where T: FromStr,
-              <T as std::str::FromStr>::Err : std::fmt::Debug
-    {
-        s[2..].split_whitespace().map(|x| x.parse::<T>().unwrap()).collect()
+}
+
+pub struct Triangle<T> {
+    a: geo::Vec3<T>,
+    b: geo::Vec3<T>,
+    c: geo::Vec3<T>,
+}
+
+impl<T> Triangle<T> {
+
+    pub fn new(a: geo::Vec3<T>, b: geo::Vec3<T>, c: geo::Vec3<T>) -> Triangle<T> {
+        // TODO create edges
+        Triangle{a, b, c}
     }
 
-    fn collect_face(s: &str) -> vec::Vec<i32> {
-        let terms: Vec<&str> = s[2..].split_whitespace().collect();
-        let mut vec = vec::Vec::<i32>::new();
-        for i in 0..3 {
-            let indices = terms[i].split("/")
-                .map(|x| x.parse::<i32>().unwrap());
-            vec.push(indices.collect::<vec::Vec<i32>>()[0]-1); // indices in wavefron start with 1
-        }
-        vec
+}
+
+impl<T> Polygon<T> for Triangle<T>
+    where T: geo::Number<T>,
+{
+
+    fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
+
     }
+
+    fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
+
+    }
+
+    fn vertices(&self) -> vec::Vec<&geo::Vec3<T>> {
+        vec![&self.a, &self.b, &self.c]
+    }
+
 }
 
 #[cfg(test)]
@@ -67,13 +104,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn load_obj() {
-        let obj = Obj::from_file("obj/african_head.obj").unwrap();
-        assert_eq!(obj.nvert, 1258);
-        assert_eq!(obj.nfaces, 2492);
-        assert_eq!(obj.vert(0), geo::Vec3f::new(-0.000581696, -0.734665, -0.623267));
-        assert_eq!(obj.face(0), geo::Vec3i::new(23, 24, 25));
+    fn triangle_create() {
+        let triangle = Triangle::new(geo::Vec3f::new(1.0, 1.0, 0.0),
+                                     geo::Vec3f::new(1.0, 2.0, 0.0),
+                                     geo::Vec3f::new(0.0, 2.0, 0.0));
+    }
+
+    #[test]
+    fn line_create() {
+        let line = Line::new(geo::Vec3i::new(1, 2, 3), geo::Vec3i::new(4, 5, 6));
+    }
+
+    #[test]
+    fn triangle_vertices() {
+        let triangle = Triangle::new(geo::Vec3f::new(1.0, 1.0, 0.0),
+                                     geo::Vec3f::new(1.0, 2.0, 0.0),
+                                     geo::Vec3f::new(0.0, 2.0, 0.0));
+        let verts = triangle.vertices();
+        assert_eq!(verts[0], &geo::Vec3f::new(1.0, 1.0, 0.0));
+        assert_eq!(verts[1], &geo::Vec3f::new(1.0, 2.0, 0.0));
+        assert_eq!(verts[2], &geo::Vec3f::new(0.0, 2.0, 0.0));
+    }
+
+    #[test]
+    fn line_points() {
+        let line = Line::new(geo::Vec3i::new(1, 2, 3), geo::Vec3i::new(4, 5, 6));
+        let points = line.vertices();
+        assert_eq!(points[0], &geo::Vec3i::new(1, 2, 3));
+        assert_eq!(points[1], &geo::Vec3i::new(4, 5, 6));
     }
 
 }
-

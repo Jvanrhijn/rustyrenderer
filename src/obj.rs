@@ -6,6 +6,9 @@ use std::io;
 use std::io::BufReader;
 use std::fs::File;
 use geo;
+use image;
+use model;
+use model::Polygon;
 
 pub struct Obj {
     pub nvert: usize,
@@ -29,7 +32,7 @@ impl Obj {
             match prefix {
                 "v " => vertices.push(geo::Vec3f::from_vec(&Obj::collect_vec::<f64>(&line))),
                 "f " => faces.push(geo::Vec3i::from_vec(&Obj::collect_face(&line))),
-                _ => continue
+                _    => continue
             };
         }
         Ok(Obj{nvert: vertices.len(), nfaces: faces.len(), vertices, faces})
@@ -59,6 +62,19 @@ impl Obj {
             vec.push(indices.collect::<vec::Vec<i32>>()[0]-1); // indices in wavefron start with 1
         }
         vec
+    }
+
+    pub fn draw_wireframe(&self, mut img: &mut image::RgbImage, rgb: &[u8; 3]) {
+        for face in self.faces.iter() {
+            // get vertices of triangle in 3D space
+            let a = &self.vertices[face.x as usize];
+            let b = &self.vertices[face.y as usize];
+            let c = &self.vertices[face.z as usize];
+            // create 2D triangle in plane z = 0
+
+            let triangle = model::Triangle::new(&a, &b, &c);
+            triangle.draw(&mut img, rgb);
+        }
     }
 }
 

@@ -1,4 +1,3 @@
-use std::mem;
 mod geo;
 mod model;
 mod obj;
@@ -6,7 +5,7 @@ use model::Polygon;
 extern crate image;
 
 
-fn triangle(face: &geo::Vec3i, model: &obj::Obj, img: &mut image::RgbImage, pix: image::Rgb<u8>) {
+fn triangle(face: &geo::Vec3i, model: &obj::Obj, img: &mut image::RgbImage) {
     let (imgx, imgy) = img.dimensions();
     let (imgx, imgy) = (imgx - 1, imgy - 1);
     let face = vec![face.x, face.y, face.z];
@@ -17,10 +16,11 @@ fn triangle(face: &geo::Vec3i, model: &obj::Obj, img: &mut image::RgbImage, pix:
         let y0 = ((v0.y + 1. )*0.5*(imgy as f64)) as u32;
         let x1 = ((v1.x + 1.)*0.5*(imgx as f64)) as u32;
         let y1 = ((v1.y + 1.)*0.5*(imgy as f64)) as u32;
-        let line = model::Line::new(geo::Vec3::new(x0, y0, 0),
-                                    geo::Vec3::new(x1, y1, 0));
+        let start = geo::Vec3::new(x0, y0, 0);
+        let end = geo::Vec3::new(x1, y1, 0);
+        let line = model::Line::new(&start, &end);
+
         line.draw(img, &[255, 255, 255]);
-        //line(x0, y0, x1, y1, img, pix);
     }
 }
 
@@ -35,7 +35,7 @@ fn main() {
 
     for i in 0..head.nfaces {
         let face = head.face(i);
-        triangle(&face, &head, &mut imgbuf, image::Rgb([255, 255, 255]));
+        triangle(&face, &head, &mut imgbuf);
     }
     image::imageops::flip_vertical(&imgbuf).save("test.png").expect("Failed to save image");
 }

@@ -14,20 +14,20 @@ pub trait Polygon<T>
     fn vertices(&self) -> vec::Vec<&geo::Vec3<T>>;
 }
 
-pub struct Line<T> {
-    start: geo::Vec3<T>,
-    end: geo::Vec3<T>,
+pub struct Line<'a, T: 'a> {
+    start: &'a geo::Vec3<T>,
+    end: &'a geo::Vec3<T>,
 }
 
-impl<T> Line<T> {
+impl<'a, T> Line<'a, T> {
 
-    pub fn new(start: geo::Vec3<T>, end: geo::Vec3<T>) -> Line<T> {
+    pub fn new(start: &'a geo::Vec3<T>, end: &'a geo::Vec3<T>) -> Line<'a, T> {
         Line{start, end}
     }
 
 }
 
-impl<T> Polygon<T> for Line<T>
+impl<'a, T> Polygon<T> for Line<'a, T>
     where T: geo::Number<T> + num::ToPrimitive
 {
 
@@ -66,27 +66,31 @@ impl<T> Polygon<T> for Line<T>
 
 }
 
-pub struct Triangle<T> {
-    a: geo::Vec3<T>,
-    b: geo::Vec3<T>,
-    c: geo::Vec3<T>,
+pub struct Triangle<'a, T: 'a> {
+    a: &'a geo::Vec3<T>,
+    b: &'a geo::Vec3<T>,
+    c: &'a geo::Vec3<T>,
+    edges: vec::Vec<Line<'a, T>>,
 }
 
-impl<T> Triangle<T> {
+impl<'a, T> Triangle<'a, T> {
 
-    pub fn new(a: geo::Vec3<T>, b: geo::Vec3<T>, c: geo::Vec3<T>) -> Triangle<T> {
-        // TODO create edges
-        Triangle{a, b, c}
+    pub fn new(a: &'a geo::Vec3<T>, b: &'a geo::Vec3<T>, c: &'a geo::Vec3<T>) -> Triangle<'a, T> {
+        let ab = Line::new(a, b);
+        let bc = Line::new(b, c);
+        let ac = Line::new(a, c);
+        Triangle{a, b, c, edges: vec![ab, bc, ac]}
     }
 
 }
 
-impl<T> Polygon<T> for Triangle<T>
+impl<'a, T> Polygon<T> for Triangle<'a, T>
     where T: geo::Number<T>,
 {
 
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-
+        let (imgx, imgy) = img.dimensions();
+        let (imgx, imgy) = (imgx - 1, imgy - 1);
     }
 
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
@@ -105,21 +109,26 @@ mod tests {
 
     #[test]
     fn triangle_create() {
-        let triangle = Triangle::new(geo::Vec3f::new(1.0, 1.0, 0.0),
-                                     geo::Vec3f::new(1.0, 2.0, 0.0),
-                                     geo::Vec3f::new(0.0, 2.0, 0.0));
+        let a = geo::Vec3f::new(1.0, 1.0, 0.0);
+        let b = geo::Vec3f::new(1.0, 2.0, 0.0);
+        let c = geo::Vec3f::new(0.0, 2.0, 0.0);
+        let triangle = Triangle::new(&a, &b, &c);
     }
 
     #[test]
     fn line_create() {
-        let line = Line::new(geo::Vec3i::new(1, 2, 3), geo::Vec3i::new(4, 5, 6));
+        let a = geo::Vec3f::new(1.0, 1.0, 0.0);
+        let b = geo::Vec3f::new(1.0, 2.0, 0.0);
+        let c = geo::Vec3f::new(0.0, 2.0, 0.0);
+        let triangle = Triangle::new(&a, &b, &c);
     }
 
     #[test]
     fn triangle_vertices() {
-        let triangle = Triangle::new(geo::Vec3f::new(1.0, 1.0, 0.0),
-                                     geo::Vec3f::new(1.0, 2.0, 0.0),
-                                     geo::Vec3f::new(0.0, 2.0, 0.0));
+        let a = geo::Vec3f::new(1.0, 1.0, 0.0);
+        let b = geo::Vec3f::new(1.0, 2.0, 0.0);
+        let c = geo::Vec3f::new(0.0, 2.0, 0.0);
+        let triangle = Triangle::new(&a, &b, &c);
         let verts = triangle.vertices();
         assert_eq!(verts[0], &geo::Vec3f::new(1.0, 1.0, 0.0));
         assert_eq!(verts[1], &geo::Vec3f::new(1.0, 2.0, 0.0));
@@ -128,7 +137,8 @@ mod tests {
 
     #[test]
     fn line_points() {
-        let line = Line::new(geo::Vec3i::new(1, 2, 3), geo::Vec3i::new(4, 5, 6));
+        let a = geo::Vec3i::new(1, 2, 3); let b = geo::Vec3i::new(4, 5, 6);
+        let line = Line::new(&a, &b);
         let points = line.vertices();
         assert_eq!(points[0], &geo::Vec3i::new(1, 2, 3));
         assert_eq!(points[1], &geo::Vec3i::new(4, 5, 6));

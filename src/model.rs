@@ -85,12 +85,16 @@ impl<'a, T> Triangle<'a, T> {
 }
 
 impl<'a, T> Polygon<T> for Triangle<'a, T>
-    where T: geo::Number<T>,
+    where T: geo::Number<T> + num::ToPrimitive,
 {
 
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-        let (imgx, imgy) = img.dimensions();
-        let (imgx, imgy) = (imgx - 1, imgy - 1);
+        let a = &self.edges[0];
+        let b = &self.edges[1];
+        let c = &self.edges[2];
+        &a.draw(img, color);
+        b.draw(img, color);
+        c.draw(img, color);
     }
 
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {

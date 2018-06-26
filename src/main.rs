@@ -33,10 +33,7 @@ fn main() {
 
     let head = obj::Obj::from_file("obj/diablo3_pose.obj").unwrap();
 
-    for i in 0..head.nfaces {
-        let face = head.face(i);
-        triangle(&face, &head, &mut imgbuf);
-    }
+    head.draw_wireframe(&mut imgbuf, &[255, 255, 255]);
     image::imageops::flip_vertical(&imgbuf).save("test.png").expect("Failed to save image");
 }
 

@@ -65,12 +65,20 @@ impl Obj {
     }
 
     pub fn draw_wireframe(&self, mut img: &mut image::RgbImage, rgb: &[u8; 3]) {
+        let (imgx, imgy) = img.dimensions();
+        let (imgx, imgy) = (imgx-1, imgy-1);
         for face in self.faces.iter() {
             // get vertices of triangle in 3D space
-            let a = &self.vertices[face.x as usize];
-            let b = &self.vertices[face.y as usize];
-            let c = &self.vertices[face.z as usize];
+            let af = &self.vertices[face.x as usize];
+            let bf = &self.vertices[face.y as usize];
+            let cf = &self.vertices[face.z as usize];
             // create 2D triangle in plane z = 0
+            let a = geo::Vec3::<u32>::new(((&af.x +1.)*0.5*(imgx as f64)) as u32,
+                                    ((&af.y + 1.)*0.5*(imgy as f64)) as u32, 0);
+            let b = geo::Vec3::<u32>::new(((&bf.x +1.)*0.5*(imgx as f64)) as u32,
+                                          ((&bf.y + 1.)*0.5*(imgy as f64)) as u32, 0);
+            let c = geo::Vec3::<u32>::new(((&cf.x +1.)*0.5*(imgx as f64)) as u32,
+                                          ((&cf.y + 1.)*0.5*(imgy as f64)) as u32, 0);
 
             let triangle = model::Triangle::new(&a, &b, &c);
             triangle.draw(&mut img, rgb);

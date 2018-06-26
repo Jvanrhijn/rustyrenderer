@@ -89,10 +89,11 @@ impl<'a, T> Polygon<T> for Triangle<'a, T>
 {
 
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-        let a = &self.edges[0];
-        let b = &self.edges[1];
-        let c = &self.edges[2];
-        &a.draw(img, color);
+        let (a, b, c) = match &self.edges.as_slice() {
+            [first, second, third] => (first, second, third),
+            _ => unreachable!()
+        };
+        a.draw(img, color);
         b.draw(img, color);
         c.draw(img, color);
     }

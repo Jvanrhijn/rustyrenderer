@@ -1,3 +1,4 @@
+use std::cmp;
 use std::vec;
 use std::mem;
 use std::convert;
@@ -14,25 +15,55 @@ pub trait Polygon<T>
     fn vertices(&self) -> vec::Vec<&geo::Vec3<T>>;
 }
 
-pub struct Line<'a, T: 'a> {
-    start: &'a geo::Vec3<T>,
-    end: &'a geo::Vec3<T>,
+pub struct Line<T> {
+    start: geo::Vec3<T>,
+    end: geo::Vec3<T>,
 }
 
-impl<'a, T> Line<'a, T> {
+impl<T> Line<T>
+    where T: geo::Number<T>
+{
 
-    pub fn new(start: &'a geo::Vec3<T>, end: &'a geo::Vec3<T>) -> Line<'a, T> {
+    pub fn new(start: geo::Vec3<T>, end: geo::Vec3<T>) -> Line<T> {
+        let (start, end) = match start.y.partial_cmp(&end.y)
+            .unwrap_or(cmp::Ordering::Equal) {
+            cmp::Ordering::Greater => (start, end),
+            cmp::Ordering::Less => (end, start),
+            cmp::Ordering::Equal => (start, end)
+        };
         Line{start, end}
+    }
+
+    pub fn fill_between(&self, other: &Line<T>, img: &mut image::RgbImage) {
+        //rasterize
+        let self_rast = self.rasterize(img);
+        let other_rast = other.rasterize(img);
+        let (highest, lowest) = match self_rast.start.y.partial_cmp(&other_rast.start.y)
+            .unwrap_or(cmp::Ordering::Equal) {
+            cmp::Ordering::Greater => (self_rast, other_rast),
+            cmp::Ordering::Less    => (other_rast, self_rast),
+            cmp::Ordering::Equal   => (self_rast, other_rast)
+        };
+    }
+
+    fn rasterize(&self, img: &image::RgbImage) -> Line<u32> {
+        let (imgx, imgy) = img.dimensions();
+        let (imgx, imgy) = (imgx-1, imgy-1);
+        let start = geo::Vec3::<u32>::new(((self.start.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as u32,
+                                                   ((self.start.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
+        let end = geo::Vec3::<u32>::new(((self.start.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as u32,
+                                                 ((self.start.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
+        Line::new(start, end)
     }
 
 }
 
-impl<'a, T> Polygon<T> for Line<'a, T>
-    where T: geo::Number<T> + num::ToPrimitive
+impl<T> Polygon<T> for Line<T>
+    where T: geo::Number<T>
 {
 
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-        // Inefficient implementation of Bresenham
+        // most of this code should go into iterator
         let Line{start, end} = self;
         let (mut x0, mut y0) = (start.x.to_u32().unwrap(), start.y.to_u32().unwrap());
         let (mut x1, mut y1) = (end.x.to_u32().unwrap(), end.y.to_u32().unwrap());
@@ -45,13 +76,23 @@ impl<'a, T> Polygon<T> for Line<'a, T>
             mem::swap(&mut x0, &mut x1);
             mem::swap(&mut y0, &mut y1);
         }
+        let dx = (x1 as i32 - x0 as i32);
+        let dy = (y1 as i32 - y0 as i32);
+        let derror = dy.abs()*2;
+        let mut error = 0;
+        let mut y = y0 as i32;
         for x in x0..=x1 {
-            let t: f64 = (x - x0) as f64 / ((x1 - x0) as f64);
-            let y = ((y0 as f64)*(1. - t) + (y1 as f64)*t) as u32;
+            // The actual 'put pixel' part should then put the pixel on the position as returned
+            // by the iterator
             if steep {
-                img.put_pixel(y, x, image::Rgb::<u8>(*color));
+                img.put_pixel(y as u32, x as u32, image::Rgb::<u8>(*color));
             } else {
-                img.put_pixel(x, y, image::Rgb::<u8>(*color));
+                img.put_pixel(x as u32, y as u32, image::Rgb::<u8>(*color));
+            }
+            error += derror;
+            if error > dx {
+                y += if dy > 0 {1} else {-1};
+                error -= dx*2;
             }
         }
     }
@@ -66,26 +107,55 @@ impl<'a, T> Polygon<T> for Line<'a, T>
 
 }
 
-pub struct Triangle<'a, T: 'a> {
-    a: &'a geo::Vec3<T>,
-    b: &'a geo::Vec3<T>,
-    c: &'a geo::Vec3<T>,
-    edges: vec::Vec<Line<'a, T>>,
+struct LineIterator<'a, T: 'a>
+    where T: geo::Number<T>
+{
+    img: &'a image::RgbImage,
+    line: &'a Line<T>,
+    pixel: geo::Vec3<u32>,
 }
 
-impl<'a, T> Triangle<'a, T> {
+impl<'a, T> LineIterator<'a, T>
+    where T: geo::Number<T>
+{
+    pub fn new(line: &'a Line<T>, img: &'a image::RgbImage) -> LineIterator<'a, T> {
+        let pixel = geo::Vec3::<u32>::new(line.start.x.to_u32().unwrap(),line.start.y.to_u32().unwrap(), 0);
+        LineIterator{img, line, pixel}
+    }
+}
 
-    pub fn new(a: &'a geo::Vec3<T>, b: &'a geo::Vec3<T>, c: &'a geo::Vec3<T>) -> Triangle<'a, T> {
-        let ab = Line::new(a, b);
-        let bc = Line::new(b, c);
-        let ac = Line::new(a, c);
+impl<'a, T> Iterator for LineIterator<'a, T>
+    where T: geo::Number<T>
+{
+    type Item = geo::Vec3i;
+
+    fn next(&mut self) -> Option<geo::Vec3i> {
+        Some(geo::Vec3i::new(0, 0, 0))
+    }
+}
+
+pub struct Triangle<T> {
+    a: geo::Vec3<T>,
+    b: geo::Vec3<T>,
+    c: geo::Vec3<T>,
+    edges: vec::Vec<Line<T>>,
+}
+
+impl<T> Triangle<T>
+    where T: geo::Number<T>
+{
+
+    pub fn new(a: geo::Vec3<T>, b: geo::Vec3<T>, c: geo::Vec3<T>) -> Triangle<T> {
+        let ab = Line::new(a.clone(), b.clone());
+        let bc = Line::new(b.clone(), c.clone());
+        let ac = Line::new(a.clone(), c.clone());
         Triangle{a, b, c, edges: vec![ab, bc, ac]}
     }
 
 }
 
-impl<'a, T> Polygon<T> for Triangle<'a, T>
-    where T: geo::Number<T> + num::ToPrimitive,
+impl<T> Polygon<T> for Triangle<T>
+    where T: geo::Number<T> + num::ToPrimitive
 {
 
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
@@ -99,7 +169,9 @@ impl<'a, T> Polygon<T> for Triangle<'a, T>
     }
 
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-
+        // first order vertices by y-coordinate
+        let vertices = self.vertices()
+            .sort_by(|x, y| x.y.partial_cmp(&y.y).unwrap_or(cmp::Ordering::Equal));
     }
 
     fn vertices(&self) -> vec::Vec<&geo::Vec3<T>> {
@@ -117,7 +189,7 @@ mod tests {
         let a = geo::Vec3f::new(1.0, 1.0, 0.0);
         let b = geo::Vec3f::new(1.0, 2.0, 0.0);
         let c = geo::Vec3f::new(0.0, 2.0, 0.0);
-        let triangle = Triangle::new(&a, &b, &c);
+        let triangle = Triangle::new(a, b, c);
     }
 
     #[test]
@@ -125,7 +197,7 @@ mod tests {
         let a = geo::Vec3f::new(1.0, 1.0, 0.0);
         let b = geo::Vec3f::new(1.0, 2.0, 0.0);
         let c = geo::Vec3f::new(0.0, 2.0, 0.0);
-        let triangle = Triangle::new(&a, &b, &c);
+        let triangle = Triangle::new(a, b, c);
     }
 
     #[test]
@@ -133,7 +205,7 @@ mod tests {
         let a = geo::Vec3f::new(1.0, 1.0, 0.0);
         let b = geo::Vec3f::new(1.0, 2.0, 0.0);
         let c = geo::Vec3f::new(0.0, 2.0, 0.0);
-        let triangle = Triangle::new(&a, &b, &c);
+        let triangle = Triangle::new(a, b, c);
         let verts = triangle.vertices();
         assert_eq!(verts[0], &geo::Vec3f::new(1.0, 1.0, 0.0));
         assert_eq!(verts[1], &geo::Vec3f::new(1.0, 2.0, 0.0));
@@ -143,10 +215,15 @@ mod tests {
     #[test]
     fn line_points() {
         let a = geo::Vec3i::new(1, 2, 3); let b = geo::Vec3i::new(4, 5, 6);
-        let line = Line::new(&a, &b);
+        let line = Line::new(a, b);
         let points = line.vertices();
-        assert_eq!(points[0], &geo::Vec3i::new(1, 2, 3));
-        assert_eq!(points[1], &geo::Vec3i::new(4, 5, 6));
+        assert_eq!(points[1], &geo::Vec3i::new(1, 2, 3));
+        assert_eq!(points[0], &geo::Vec3i::new(4, 5, 6));
+    }
+
+    #[test]
+    fn line_iterate() {
+        let line = Line::new(geo::)
     }
 
 }

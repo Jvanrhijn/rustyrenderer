@@ -80,7 +80,7 @@ impl Obj {
             let c = geo::Vec3::<u32>::new(((&cf.x +1.)*0.5*(imgx as f64)) as u32,
                                           ((&cf.y + 1.)*0.5*(imgy as f64)) as u32, 0);
 
-            let triangle = model::Triangle::new(&a, &b, &c);
+            let triangle = model::Triangle::new(a, b, c);
             triangle.draw(&mut img, rgb);
         }
     }

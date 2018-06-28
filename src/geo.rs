@@ -1,14 +1,13 @@
+use std;
+extern crate num;
+use std::cmp;
 use std::ops;
 use std::vec;
 use std::convert;
 use std::fmt;
 
-pub trait Number<T>: Copy
-+ ops::Add<Output=T> + ops::Mul<Output=T> + ops::Sub<Output=T> + ops::Div<Output=T>
-+ convert::Into<f64> {}
-
-impl<T> Number<T> for T where T: Copy + ops::Add<Output=T> + ops::Mul<Output=T> + ops::Sub<Output=T> + ops::Div<Output=T>
-+ convert::Into<f64> {}
+pub trait Number<T>: Copy + num::Num + num::Bounded + num::NumCast + PartialOrd + Clone {}
+impl<T> Number<T> for T where T: Copy + num::Num + num::Bounded + num::NumCast + PartialOrd + Clone {}
 
 pub trait Vector<'a, T>
     where &'a Self: ops::Mul<&'a Self, Output=T> + 'a,
@@ -21,7 +20,7 @@ pub trait Vector<'a, T>
     }
 
     fn norm(&'a self) -> f64 {
-        (self.dot(self).into()).sqrt()
+        (self.dot(self).to_f64().unwrap()).sqrt()
     }
 }
 
@@ -40,7 +39,8 @@ impl<T> Vec2<T>
 
     pub fn normalize(self) -> Vec2<f64> {
         let norm = self.norm();
-        Vec2::<f64>{x: self.x.into()/norm, y: self.y.into()/norm}
+        let Vec2::<T>{x, y} = self;
+        Vec2::<f64>{x: x.to_f64().unwrap()/norm, y: y.to_f64().unwrap()/norm}
     }
 
 }
@@ -121,7 +121,7 @@ pub struct Vec3<T>
 }
 
 impl<T> Vec3<T>
-    where T: Number<T> + convert::Into<f64>
+    where T: Number<T>
 {
     pub fn new(x: T, y: T, z: T) -> Vec3<T> {
         Vec3{x, y, z}
@@ -136,7 +136,12 @@ impl<T> Vec3<T>
 
     pub fn normalize(self) -> Vec3<f64> {
         let norm = self.norm();
-        Vec3::<f64>{x: self.x.into()/norm, y: self.y.into()/norm, z: self.z.into()/norm}
+        let Vec3::<T>{x, y, z} = self;
+        Vec3::<f64>{
+            x: x.to_f64().unwrap()/norm,
+            y: y.to_f64().unwrap()/norm,
+            z: z.to_f64().unwrap()/norm
+        }
     }
 
     pub fn cross(&self, other: &Vec3<T>) -> Vec3<T> {
@@ -211,7 +216,7 @@ impl<'a, T: 'a> Vector<'a, T> for Vec3<T>
         if vec.len() != 3 {
             panic!("Can only initialize Vec3 from std::Vec if std::Vec has 3 elements");
         }
-        Vec3::new(vec[0].clone(), vec[1].clone(), vec[2].clone())
+        Vec3::<T>::new(vec[0].clone(), vec[1].clone(), vec[2].clone())
     }
 
 }

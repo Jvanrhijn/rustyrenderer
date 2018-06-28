@@ -25,12 +25,6 @@ impl<T> Line<T>
 {
 
     pub fn new(start: geo::Vec3<T>, end: geo::Vec3<T>) -> Line<T> {
-        let (start, end) = match start.y.partial_cmp(&end.y)
-            .unwrap_or(cmp::Ordering::Equal) {
-            cmp::Ordering::Greater => (start, end),
-            cmp::Ordering::Less => (end, start),
-            cmp::Ordering::Equal => (start, end)
-        };
         Line{start, end}
     }
 
@@ -50,10 +44,14 @@ impl<T> Line<T>
         let (imgx, imgy) = img.dimensions();
         let (imgx, imgy) = (imgx-1, imgy-1);
         let start = geo::Vec3::<u32>::new(((self.start.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as u32,
-                                                   ((self.start.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
+                                          ((self.start.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
         let end = geo::Vec3::<u32>::new(((self.start.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as u32,
-                                                 ((self.start.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
+                                        ((self.start.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
         Line::new(start, end)
+    }
+
+    fn iter(&self) -> LineIterator {
+        LineIterator::new(self)
     }
 
 }
@@ -68,31 +66,15 @@ impl<T> Polygon<T> for Line<T>
         let (mut x0, mut y0) = (start.x.to_u32().unwrap(), start.y.to_u32().unwrap());
         let (mut x1, mut y1) = (end.x.to_u32().unwrap(), end.y.to_u32().unwrap());
         let steep = (x1 as i32 - x0 as i32).abs() < (y1 as i32 - y0 as i32).abs();
-        if steep {
-            mem::swap(&mut x0, &mut y0);
-            mem::swap(&mut y1, &mut x1);
-        }
-        if x0 > x1 {
-            mem::swap(&mut x0, &mut x1);
-            mem::swap(&mut y0, &mut y1);
-        }
-        let dx = (x1 as i32 - x0 as i32);
-        let dy = (y1 as i32 - y0 as i32);
-        let derror = dy.abs()*2;
-        let mut error = 0;
-        let mut y = y0 as i32;
-        for x in x0..=x1 {
-            // The actual 'put pixel' part should then put the pixel on the position as returned
-            // by the iterator
+        let mut y = y0;
+        let mut x = x0;
+        //let line_iter = LineIterator::new(self);
+        for pixel in self.iter() {
+            let geo::Vec3i{x, y, z: _} = pixel;
             if steep {
                 img.put_pixel(y as u32, x as u32, image::Rgb::<u8>(*color));
             } else {
                 img.put_pixel(x as u32, y as u32, image::Rgb::<u8>(*color));
-            }
-            error += derror;
-            if error > dx {
-                y += if dy > 0 {1} else {-1};
-                error -= dx*2;
             }
         }
     }
@@ -107,30 +89,62 @@ impl<T> Polygon<T> for Line<T>
 
 }
 
-struct LineIterator<'a, T: 'a>
-    where T: geo::Number<T>
+struct LineIterator
 {
-    img: &'a image::RgbImage,
-    line: &'a Line<T>,
+    line: Line<u32>,
+    dx: i32,
+    dy: i32,
+    derror: i32,
+    error: i32,
+    x: i32,
+    y: i32,
     pixel: geo::Vec3<u32>,
 }
 
-impl<'a, T> LineIterator<'a, T>
-    where T: geo::Number<T>
+impl LineIterator
 {
-    pub fn new(line: &'a Line<T>, img: &'a image::RgbImage) -> LineIterator<'a, T> {
+    pub fn new<T>(line: &Line<T>) -> LineIterator
+        where T: geo::Number<T>
+    {
         let pixel = geo::Vec3::<u32>::new(line.start.x.to_u32().unwrap(),line.start.y.to_u32().unwrap(), 0);
-        LineIterator{img, line, pixel}
+        let Line{start, end} = line;
+        let (mut x0, mut y0) = (start.x.to_u32().unwrap(), start.y.to_u32().unwrap());
+        let (mut x1, mut y1) = (end.x.to_u32().unwrap(), end.y.to_u32().unwrap());
+        let steep = (x1 as i32 - x0 as i32).abs() < (y1 as i32 - y0 as i32).abs();
+        if steep {
+            mem::swap(&mut x0, &mut y0);
+            mem::swap(&mut y1, &mut x1);
+        }
+        if x0 > x1 {
+            mem::swap(&mut x0, &mut x1);
+            mem::swap(&mut y0, &mut y1);
+        }
+        let dx = (x1 as i32 - x0 as i32);
+        let dy = (y1 as i32 - y0 as i32);
+        let derror = dy.abs()*2;
+        let oriented_line = Line::new(geo::Vec3::<u32>::new(x0, y0, 0),
+                                                geo::Vec3::<u32>::new(x1, y1, 0));
+        LineIterator{line: oriented_line, dx, dy, derror, error: 0,
+                     x: x0 as i32, y: y0 as i32, pixel}
     }
 }
 
-impl<'a, T> Iterator for LineIterator<'a, T>
-    where T: geo::Number<T>
+impl Iterator for LineIterator
 {
     type Item = geo::Vec3i;
 
     fn next(&mut self) -> Option<geo::Vec3i> {
-        Some(geo::Vec3i::new(0, 0, 0))
+        self.error += self.derror;
+        if self.error > self.dx {
+            self.y += if self.dy > 0 { 1 } else { -1 };
+            self.error -= self.dx * 2;
+        }
+        self.x += 1;
+        if self.x <= self.line.end.x as i32 {
+            Some(geo::Vec3i::new(self.x, self.y, 0))
+        } else {
+           None
+        }
     }
 }
 
@@ -217,13 +231,23 @@ mod tests {
         let a = geo::Vec3i::new(1, 2, 3); let b = geo::Vec3i::new(4, 5, 6);
         let line = Line::new(a, b);
         let points = line.vertices();
-        assert_eq!(points[1], &geo::Vec3i::new(1, 2, 3));
-        assert_eq!(points[0], &geo::Vec3i::new(4, 5, 6));
+        assert_eq!(points[0], &geo::Vec3i::new(1, 2, 3));
+        assert_eq!(points[1], &geo::Vec3i::new(4, 5, 6));
     }
 
     #[test]
     fn line_iterate() {
-        let line = Line::new(geo::)
+        let line = Line::new(geo::Vec3::<u64>::new(0, 0, 0),
+                             geo::Vec3::<u64>::new(9, 9, 0));
+        let image = image::RgbImage::new(10, 20);
+        let line_iter = LineIterator::new(&line);
+        let mut x = 0;
+        let mut y = 0;
+        for (i, pixel) in line_iter.enumerate() {
+            assert_eq!(pixel, geo::Vec3i::new((i+1) as i32, (i+1) as i32, 0));
+        }
+
+
     }
 
 }

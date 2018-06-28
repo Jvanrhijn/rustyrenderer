@@ -28,7 +28,7 @@ impl<T> Line<T>
         Line{start, end}
     }
 
-    pub fn fill_between(&self, other: &Line<T>, img: &mut image::RgbImage) {
+    pub fn fill_between(&self, other: &Line<T>, img: &mut image::RgbImage, color: &[u8; 3]) {
         //rasterize
         let self_rast = self.rasterize(img);
         let other_rast = other.rasterize(img);
@@ -38,6 +38,14 @@ impl<T> Line<T>
             cmp::Ordering::Less    => (other_rast, self_rast),
             cmp::Ordering::Equal   => (self_rast, other_rast)
         };
+        // find sub lines
+        let sub_self_start = if self.start.y < other.start.y {self_rast.start} else {other_rast.y};
+
+        /*for (first, second) in self_rast.iter().zip(other_rast.iter()) {
+            let line_between = Line::new(geo::Vec3::<u32>::new(first.x as u32, first.y as u32, 0),
+                                                    geo::Vec3::<u32>::new(second.x as u32, second.y as u32, 0));
+            line_between.draw(img, color);
+        }*/
     }
 
     fn rasterize(&self, img: &image::RgbImage) -> Line<u32> {
@@ -65,17 +73,12 @@ impl<T> Polygon<T> for Line<T>
         let Line{start, end} = self;
         let (mut x0, mut y0) = (start.x.to_u32().unwrap(), start.y.to_u32().unwrap());
         let (mut x1, mut y1) = (end.x.to_u32().unwrap(), end.y.to_u32().unwrap());
-        let steep = (x1 as i32 - x0 as i32).abs() < (y1 as i32 - y0 as i32).abs();
         let mut y = y0;
         let mut x = x0;
         //let line_iter = LineIterator::new(self);
         for pixel in self.iter() {
             let geo::Vec3i{x, y, z: _} = pixel;
-            if steep {
-                img.put_pixel(y as u32, x as u32, image::Rgb::<u8>(*color));
-            } else {
-                img.put_pixel(x as u32, y as u32, image::Rgb::<u8>(*color));
-            }
+            img.put_pixel(x as u32, y as u32, image::Rgb::<u8>(*color));
         }
     }
 
@@ -98,6 +101,7 @@ struct LineIterator
     error: i32,
     x: i32,
     y: i32,
+    steep: bool,
     pixel: geo::Vec3<u32>,
 }
 
@@ -125,7 +129,7 @@ impl LineIterator
         let oriented_line = Line::new(geo::Vec3::<u32>::new(x0, y0, 0),
                                                 geo::Vec3::<u32>::new(x1, y1, 0));
         LineIterator{line: oriented_line, dx, dy, derror, error: 0,
-                     x: x0 as i32, y: y0 as i32, pixel}
+                     x: x0 as i32, y: y0 as i32, steep, pixel}
     }
 }
 
@@ -140,10 +144,14 @@ impl Iterator for LineIterator
             self.error -= self.dx * 2;
         }
         self.x += 1;
+        let (x, y) = match self.steep {
+            false => (self.x, self.y),
+            true => (self.y, self.x)
+        };
         if self.x <= self.line.end.x as i32 {
-            Some(geo::Vec3i::new(self.x, self.y, 0))
+            Some(geo::Vec3i::new(x, y, 0))
         } else {
-           None
+                None
         }
     }
 }

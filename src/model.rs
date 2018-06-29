@@ -14,7 +14,7 @@ pub trait Polygon<T>
 
     fn vertices(&self) -> vec::Vec<&geo::Vec3<T>>;
 
-    fn inside(&self, point: vec::Vec<&geo::Vec3<T>>) -> bool;
+    fn inside(&self, point: &geo::Vec3<T>) -> bool;
 }
 
 pub struct Line<T> {
@@ -71,7 +71,7 @@ impl<T> Polygon<T> for Line<T>
         vec![&self.start, &self.end]
     }
 
-    fn inside(&self, point: geo::Vec3<T>) -> bool {
+    fn inside(&self, point: &geo::Vec3<T>) -> bool {
         false
     }
 
@@ -159,6 +159,18 @@ impl<T> Triangle<T>
         Triangle{a, b, c, edges: vec![ab, bc, ac]}
     }
 
+    pub fn barycentric(&self, point: &geo::Vec3<T>) -> geo::Vec3f {
+        let first = geo::Vec3::<T>::new((&self.b-&self.a).x, (&self.c-&self.a).x, (&self.a-&point).x);
+        let second = geo::Vec3::<T>::new((&self.b-&self.a).y, (&self.c-&self.a).y, (&self.a-&point).y);
+        let cross = first.cross(&second);
+        let u = geo::Vec3f::new(cross.x.to_f64().unwrap(), cross.y.to_f64().unwrap(), cross.z.to_f64().unwrap());
+        if u.z.abs() < 1. {
+            geo::Vec3f::new(-1., 1., 1.)
+        } else {
+            geo::Vec3f::new(1.-(u.x+u.y)/u.z, u.y/u.z, u.x/u.z)
+        }
+    }
+
 }
 
 impl<T> Polygon<T> for Triangle<T>
@@ -168,7 +180,7 @@ impl<T> Polygon<T> for Triangle<T>
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
         let (a, b, c) = match &self.edges.as_slice() {
             [first, second, third] => (first, second, third),
-            _ => unreachable!()
+            _                      => unreachable!()
         };
         a.draw(img, color);
         b.draw(img, color);
@@ -176,17 +188,20 @@ impl<T> Polygon<T> for Triangle<T>
     }
 
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-        // first order vertices by y-coordinate
-        let vertices = self.vertices()
-            .sort_by(|x, y| x.y.partial_cmp(&y.y).unwrap_or(cmp::Ordering::Equal));
+        let mut bbox_min = geo::Vec2i::new(0, 0);
+        let mut bbox_max = geo::Vec2i::new(0, 0);
+        for vertex in self.vertices.into_iter() {
+            
+        }
     }
 
     fn vertices(&self) -> vec::Vec<&geo::Vec3<T>> {
         vec![&self.a, &self.b, &self.c]
     }
 
-    fn inside(&self, point: geo::Vec3<T>) -> bool {
-        false
+    fn inside(&self, point: &geo::Vec3<T>) -> bool {
+        let bc = self.barycentric(&point);
+        !(bc.x < 0. || bc.y < 0. || bc.z < 0.)
     }
 }
 
@@ -243,4 +258,17 @@ mod tests {
             assert_eq!(pixel, geo::Vec3i::new((i+1) as i32, (i+1) as i32, 0));
         }
     }
+
+    #[test]
+    fn inside_triangle() {
+        let a = geo::Vec3f::new(0.0, 0.0, 0.0);
+        let b = geo::Vec3f::new(1.0, 0.0, 0.0);
+        let c = geo::Vec3f::new(1.0, 1.0, 0.0);
+        let triangle = Triangle::new(a, b, c);
+        let not_inside = geo::Vec3f::new(-0.1, 0., 0.);
+        let inside = geo::Vec3f::new(0.9, 0.1, 0.);
+        assert!(!triangle.inside(&not_inside));
+        assert!(triangle.inside(&inside));
+    }
+
 }

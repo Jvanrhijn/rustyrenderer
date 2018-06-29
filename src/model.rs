@@ -13,6 +13,8 @@ pub trait Polygon<T>
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]);
 
     fn vertices(&self) -> vec::Vec<&geo::Vec3<T>>;
+
+    fn inside(&self, point: vec::Vec<&geo::Vec3<T>>) -> bool;
 }
 
 pub struct Line<T> {
@@ -28,33 +30,13 @@ impl<T> Line<T>
         Line{start, end}
     }
 
-    pub fn fill_between(&self, other: &Line<T>, img: &mut image::RgbImage, color: &[u8; 3]) {
-        //rasterize
-        let self_rast = self.rasterize(img);
-        let other_rast = other.rasterize(img);
-        let (highest, lowest) = match self_rast.start.y.partial_cmp(&other_rast.start.y)
-            .unwrap_or(cmp::Ordering::Equal) {
-            cmp::Ordering::Greater => (self_rast, other_rast),
-            cmp::Ordering::Less    => (other_rast, self_rast),
-            cmp::Ordering::Equal   => (self_rast, other_rast)
-        };
-        // find sub lines
-        let sub_self_start = if self.start.y < other.start.y {self_rast.start} else {other_rast.y};
-
-        /*for (first, second) in self_rast.iter().zip(other_rast.iter()) {
-            let line_between = Line::new(geo::Vec3::<u32>::new(first.x as u32, first.y as u32, 0),
-                                                    geo::Vec3::<u32>::new(second.x as u32, second.y as u32, 0));
-            line_between.draw(img, color);
-        }*/
-    }
-
     fn rasterize(&self, img: &image::RgbImage) -> Line<u32> {
         let (imgx, imgy) = img.dimensions();
         let (imgx, imgy) = (imgx-1, imgy-1);
         let start = geo::Vec3::<u32>::new(((self.start.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as u32,
                                           ((self.start.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
-        let end = geo::Vec3::<u32>::new(((self.start.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as u32,
-                                        ((self.start.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
+        let end = geo::Vec3::<u32>::new(((self.end.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as u32,
+                                        ((self.end.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
         Line::new(start, end)
     }
 
@@ -75,7 +57,6 @@ impl<T> Polygon<T> for Line<T>
         let (mut x1, mut y1) = (end.x.to_u32().unwrap(), end.y.to_u32().unwrap());
         let mut y = y0;
         let mut x = x0;
-        //let line_iter = LineIterator::new(self);
         for pixel in self.iter() {
             let geo::Vec3i{x, y, z: _} = pixel;
             img.put_pixel(x as u32, y as u32, image::Rgb::<u8>(*color));
@@ -88,6 +69,10 @@ impl<T> Polygon<T> for Line<T>
 
     fn vertices(&self) -> vec::Vec<&geo::Vec3<T>> {
         vec![&self.start, &self.end]
+    }
+
+    fn inside(&self, point: geo::Vec3<T>) -> bool {
+        false
     }
 
 }
@@ -200,6 +185,9 @@ impl<T> Polygon<T> for Triangle<T>
         vec![&self.a, &self.b, &self.c]
     }
 
+    fn inside(&self, point: geo::Vec3<T>) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]
@@ -251,11 +239,8 @@ mod tests {
         let line_iter = LineIterator::new(&line);
         let mut x = 0;
         let mut y = 0;
-        for (i, pixel) in line_iter.enumerate() {
+        for (i, pixel) in line.iter().enumerate() {
             assert_eq!(pixel, geo::Vec3i::new((i+1) as i32, (i+1) as i32, 0));
         }
-
-
     }
-
 }

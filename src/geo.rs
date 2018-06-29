@@ -6,6 +6,7 @@ use std::vec;
 use std::convert;
 use std::fmt;
 
+
 pub trait Number<T>: Copy + num::Num + num::Bounded + num::NumCast + PartialOrd + Clone {}
 impl<T> Number<T> for T where T: Copy + num::Num + num::Bounded + num::NumCast + PartialOrd + Clone {}
 
@@ -24,7 +25,7 @@ pub trait Vector<'a, T>
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Vec2<T> {
     pub x: T,
     pub y: T,
@@ -112,7 +113,7 @@ impl<'a, T: 'a> Vector<'a, T> for Vec2<T>
 
 // Vec3 impl
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Vec3<T>
 {
     pub x: T,

@@ -59,7 +59,7 @@ impl Obj {
         for i in 0..3 {
             let indices = terms[i].split("/")
                 .map(|x| x.parse::<i32>().unwrap());
-            vec.push(indices.collect::<vec::Vec<i32>>()[0]-1); // indices in wavefron start with 1
+            vec.push(indices.collect::<vec::Vec<i32>>()[0]-1); // indices in wavefront start with 1
         }
         vec
     }

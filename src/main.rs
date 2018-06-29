@@ -10,9 +10,9 @@ fn main() {
 
     let mut imgbuf = image::RgbImage::new(imgx, imgy);
 
-    let head = obj::Obj::from_file("obj/african_head.obj").unwrap();
+    let head = obj::Obj::from_file("obj/diablo3_pose.obj").unwrap();
 
-    head.draw_wireframe(&mut imgbuf, &[255, 255, 255]);
+    head.draw_lit(&mut imgbuf, geo::Vec3f::new(0., 0., -1.));
     image::imageops::flip_vertical(&imgbuf).save("test.png").expect("Failed to save image");
 }
 

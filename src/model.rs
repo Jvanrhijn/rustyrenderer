@@ -64,7 +64,7 @@ impl<T> Polygon<T> for Line<T>
     }
 
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-
+        self.draw(img, color);
     }
 
     fn vertices(&self) -> vec::Vec<&geo::Vec3<T>> {
@@ -171,7 +171,23 @@ impl<T> Triangle<T>
         }
     }
 
+    fn rasterize(&self, img: &image::RgbImage) -> Triangle<i32> {
+        let (imgx, imgy) = img.dimensions();
+        let (imgx, imgy) = (imgx-1, imgy-1);
+        let mut vertices = vec::Vec::<geo::Vec3<i32>>::new();
+        for vert in self.vertices().into_iter() {
+            vertices.push(geo::Vec3::<i32>::new(((vert.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as i32,
+                                                ((vert.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as i32, 0));
+        }
+        Triangle::new(vertices[0], vertices[1], vertices[2])
+    }
+
+    pub fn normal(&self) -> geo::Vec3f {
+        let normal = (&self.c-&self.a).cross(&(&self.b-&self.a));
+        normal.normalize()
+    }
 }
+
 
 impl<T> Polygon<T> for Triangle<T>
     where T: geo::Number<T> + num::ToPrimitive
@@ -188,10 +204,25 @@ impl<T> Polygon<T> for Triangle<T>
     }
 
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-        let mut bbox_min = geo::Vec2i::new(0, 0);
-        let mut bbox_max = geo::Vec2i::new(0, 0);
-        for vertex in self.vertices.into_iter() {
-            
+        let rast = self.rasterize(img);
+        let (imgx, imgy) = img.dimensions();
+        let mut bbox_min = geo::Vec2::<i32>::new(0, 0);
+        let mut bbox_max = geo::Vec2::<i32>::new(imgx as i32 -1, imgy as i32 -1);
+        let clamp = bbox_max.clone();
+        for vertex in rast.vertices().into_iter() {
+            bbox_min.x = cmp::max(0, cmp::min(bbox_min.x, vertex.x));
+            bbox_min.y = cmp::max(0, cmp::min(bbox_min.y, vertex.y));
+            bbox_max.x = cmp::min(clamp.x, cmp::max(bbox_max.x, vertex.y));
+            bbox_max.y = cmp::min(clamp.y, cmp::max(bbox_max.y, vertex.y));
+        }
+        let mut point = geo::Vec3::<i32>::new(0, 0, 0);
+        for x in bbox_min.x..bbox_max.x {
+            for y in bbox_min.y..bbox_max.y {
+                point.x = x as i32; point.y = y;
+                if rast.inside(&point) {
+                    img.put_pixel(point.x as u32, point.y as u32, image::Rgb::<u8>(*color));
+                }
+            }
         }
     }
 
@@ -203,6 +234,7 @@ impl<T> Polygon<T> for Triangle<T>
         let bc = self.barycentric(&point);
         !(bc.x < 0. || bc.y < 0. || bc.z < 0.)
     }
+
 }
 
 #[cfg(test)]

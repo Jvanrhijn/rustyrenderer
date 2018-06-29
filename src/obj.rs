@@ -1,4 +1,6 @@
 use std;
+use geo::Vector;
+extern crate rand;
 use std::vec;
 use std::io::prelude::*;
 use std::str::FromStr;
@@ -68,22 +70,35 @@ impl Obj {
         let (imgx, imgy) = img.dimensions();
         let (imgx, imgy) = (imgx-1, imgy-1);
         for face in self.faces.iter() {
-            // get vertices of triangle in 3D space
-            let af = &self.vertices[face.x as usize];
-            let bf = &self.vertices[face.y as usize];
-            let cf = &self.vertices[face.z as usize];
-            // create 2D triangle in plane z = 0
-            let a = geo::Vec3::<u32>::new(((&af.x +1.)*0.5*(imgx as f64)) as u32,
-                                    ((&af.y + 1.)*0.5*(imgy as f64)) as u32, 0);
-            let b = geo::Vec3::<u32>::new(((&bf.x +1.)*0.5*(imgx as f64)) as u32,
-                                          ((&bf.y + 1.)*0.5*(imgy as f64)) as u32, 0);
-            let c = geo::Vec3::<u32>::new(((&cf.x +1.)*0.5*(imgx as f64)) as u32,
-                                          ((&cf.y + 1.)*0.5*(imgy as f64)) as u32, 0);
-
-            let triangle = model::Triangle::new(a, b, c);
-            triangle.draw(&mut img, rgb);
+            self.get_triangle(face).draw_filled(img, rgb);
         }
     }
+
+    pub fn draw_lit(&self, mut img: &mut image::RgbImage, light_dir: geo::Vec3f) {
+        let (imgx, imgy) = img.dimensions();
+        let (imgx, imgy) = (imgx-1, imgy-1);
+        for face in self.faces.iter() {
+            let triangle = self.get_triangle(face);
+            let intensity = Obj::light_intensity(&triangle, light_dir);
+            if intensity > 0. {
+                let color = [(255.*intensity) as u8, (255.*intensity) as u8, (255.*intensity) as u8];
+                triangle.draw_filled(img, &color);
+            }
+        }
+    }
+
+    fn get_triangle(&self, face: &geo::Vec3<i32>) -> model::Triangle<f64> {
+        let af = &self.vertices[face.x as usize];
+        let bf = &self.vertices[face.y as usize];
+        let cf = &self.vertices[face.z as usize];
+        model::Triangle::new(*af, *bf, *cf)
+    }
+
+    fn light_intensity(triangle: &model::Triangle<f64>, direction: geo::Vec3f) -> f64 {
+        let normal = triangle.normal();
+        normal.dot(&direction.normalize())
+    }
+
 }
 
 #[cfg(test)]

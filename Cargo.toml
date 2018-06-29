@@ -6,3 +6,4 @@ authors = ["Jesse van Rhijn <jesse.v.rhijn@gmail.com>"]
 [dependencies]
 image = "*"
 num = "0.1"
+rand = "0.5"

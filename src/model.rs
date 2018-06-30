@@ -29,15 +29,11 @@ impl<T> Line<T>
 
     fn rasterize(&self, xdim: u32, ydim: u32) -> Line<u32> {
         let (start, end) = (self.start.to_f64(), self.end.to_f64());
-        let start = geo::Vec3::<u32>::new(((self.start.x.to_f64().unwrap() + 1.)*0.5*(xdim as f64)) as u32,
-                                          ((self.start.y.to_f64().unwrap() + 1.)*0.5*(ydim as f64)) as u32, 0);
-        let end = geo::Vec3::<u32>::new(((self.end.x.to_f64().unwrap() + 1.)*0.5*(xdim as f64)) as u32,
-                                        ((self.end.y.to_f64().unwrap() + 1.)*0.5*(ydim as f64)) as u32, 0);
+        let start = geo::Vec3::<u32>::new(((start.x + 1.)*0.5*(xdim as f64)) as u32,
+                                          ((start.y + 1.)*0.5*(ydim as f64)) as u32, 0);
+        let end = geo::Vec3::<u32>::new(((end.x + 1.)*0.5*(xdim as f64)) as u32,
+                                        ((end.y + 1.)*0.5*(ydim as f64)) as u32, 0);
         Line::new(start, end)
-    }
-
-    fn iter(&self) -> LineIterator {
-        LineIterator::new(self)
     }
 
     fn vertices(&self) -> [&geo::Vec3<T>; 2] {
@@ -52,7 +48,7 @@ impl<T> Polygon<T> for Line<T>
 {
 
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-        for pixel in self.iter() {
+        for pixel in self.into_iter() {
             let geo::Vec3i{x, y, z: _} = pixel;
             img.put_pixel(x as u32, y as u32, image::Rgb::<u8>(*color));
         }
@@ -64,7 +60,7 @@ impl<T> Polygon<T> for Line<T>
 
     fn inside(&self, point: &geo::Vec3<T>) -> bool {
         let point = point.to_i32();
-        for pixel in self.iter() {
+        for pixel in self.into_iter() {
             if pixel.x == point.x && pixel.y == point.y {
                 return true;
             }
@@ -74,7 +70,7 @@ impl<T> Polygon<T> for Line<T>
 
 }
 
-struct LineIterator
+pub struct LineIterator
 {
     line: Line<u32>,
     dx: i32,
@@ -113,8 +109,7 @@ impl LineIterator
     }
 }
 
-impl Iterator for LineIterator
-{
+impl Iterator for LineIterator {
     type Item = geo::Vec3i;
 
     fn next(&mut self) -> Option<geo::Vec3i> {
@@ -133,6 +128,17 @@ impl Iterator for LineIterator
         } else {
             None
         }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Line<T>
+    where T: geo::Number<T>
+{
+    type Item = geo::Vec3i;
+    type IntoIter = LineIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        LineIterator::new(&self)
     }
 }
 
@@ -282,7 +288,7 @@ mod tests {
         let line_iter = LineIterator::new(&line);
         let mut x = 0;
         let mut y = 0;
-        for (i, pixel) in line.iter().enumerate() {
+        for (i, pixel) in line.into_iter().enumerate() {
             assert_eq!(pixel, geo::Vec3i::new((i+1) as i32, (i+1) as i32, 0));
         }
     }

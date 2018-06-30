@@ -11,8 +11,6 @@ pub trait Polygon<T>
 
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]);
 
-    fn vertices(&self) -> vec::Vec<&geo::Vec3<T>>;
-
     fn inside(&self, point: &geo::Vec3<T>) -> bool;
 }
 
@@ -29,19 +27,23 @@ impl<T> Line<T>
         Line{start, end}
     }
 
-    fn rasterize(&self, img: &image::RgbImage) -> Line<u32> {
-        let (imgx, imgy) = img.dimensions();
-        let (imgx, imgy) = (imgx-1, imgy-1);
-        let start = geo::Vec3::<u32>::new(((self.start.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as u32,
-                                          ((self.start.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
-        let end = geo::Vec3::<u32>::new(((self.end.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as u32,
-                                        ((self.end.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as u32, 0);
+    fn rasterize(&self, xdim: u32, ydim: u32) -> Line<u32> {
+        let (start, end) = (self.start.to_f64(), self.end.to_f64());
+        let start = geo::Vec3::<u32>::new(((self.start.x.to_f64().unwrap() + 1.)*0.5*(xdim as f64)) as u32,
+                                          ((self.start.y.to_f64().unwrap() + 1.)*0.5*(ydim as f64)) as u32, 0);
+        let end = geo::Vec3::<u32>::new(((self.end.x.to_f64().unwrap() + 1.)*0.5*(xdim as f64)) as u32,
+                                        ((self.end.y.to_f64().unwrap() + 1.)*0.5*(ydim as f64)) as u32, 0);
         Line::new(start, end)
     }
 
     fn iter(&self) -> LineIterator {
         LineIterator::new(self)
     }
+
+    fn vertices(&self) -> [&geo::Vec3<T>; 2] {
+        [&self.start, &self.end]
+    }
+
 
 }
 
@@ -60,13 +62,10 @@ impl<T> Polygon<T> for Line<T>
         self.draw(img, color);
     }
 
-    fn vertices(&self) -> vec::Vec<&geo::Vec3<T>> {
-        vec![&self.start, &self.end]
-    }
-
     fn inside(&self, point: &geo::Vec3<T>) -> bool {
+        let point = point.to_i32();
         for pixel in self.iter() {
-            if pixel.x == point.x.to_i32().unwrap() && pixel.y == point.y.to_i32().unwrap() {
+            if pixel.x == point.x && pixel.y == point.y {
                 return true;
             }
         }
@@ -85,7 +84,6 @@ struct LineIterator
     x: i32,
     y: i32,
     steep: bool,
-    pixel: geo::Vec3<u32>,
 }
 
 impl LineIterator
@@ -93,7 +91,6 @@ impl LineIterator
     pub fn new<T>(line: &Line<T>) -> LineIterator
         where T: geo::Number<T>
     {
-        let pixel = geo::Vec3::<u32>::new(line.start.x.to_u32().unwrap(),line.start.y.to_u32().unwrap(), 0);
         let Line{start, end} = line;
         let (mut x0, mut y0) = (start.x.to_u32().unwrap(), start.y.to_u32().unwrap());
         let (mut x1, mut y1) = (end.x.to_u32().unwrap(), end.y.to_u32().unwrap());
@@ -106,13 +103,13 @@ impl LineIterator
             mem::swap(&mut x0, &mut x1);
             mem::swap(&mut y0, &mut y1);
         }
-        let dx = x1 as i32 - x0 as i32;
-        let dy = y1 as i32 - y0 as i32;
+        let dx = (x1 as i32 - x0 as i32);
+        let dy = (y1 as i32 - y0 as i32);
         let derror = dy.abs()*2;
         let oriented_line = Line::new(geo::Vec3::<u32>::new(x0, y0, 0),
                                                 geo::Vec3::<u32>::new(x1, y1, 0));
         LineIterator{line: oriented_line, dx, dy, derror, error: 0,
-                     x: x0 as i32, y: y0 as i32, steep, pixel}
+                     x: x0 as i32, y: y0 as i32, steep}
     }
 }
 
@@ -134,7 +131,7 @@ impl Iterator for LineIterator
         if self.x <= self.line.end.x as i32 {
             Some(geo::Vec3i::new(x, y, 0))
         } else {
-                None
+            None
         }
     }
 }
@@ -143,7 +140,7 @@ pub struct Triangle<T> {
     a: geo::Vec3<T>,
     b: geo::Vec3<T>,
     c: geo::Vec3<T>,
-    edges: vec::Vec<Line<T>>,
+    edges: [Line<T>; 3],
 }
 
 impl<T> Triangle<T>
@@ -154,14 +151,13 @@ impl<T> Triangle<T>
         let ab = Line::new(a.clone(), b.clone());
         let bc = Line::new(b.clone(), c.clone());
         let ac = Line::new(a.clone(), c.clone());
-        Triangle{a, b, c, edges: vec![ab, bc, ac]}
+        Triangle{a, b, c, edges: [ab, bc, ac]}
     }
 
     pub fn barycentric(&self, point: &geo::Vec3<T>) -> geo::Vec3f {
         let first = geo::Vec3::<T>::new((&self.b-&self.a).x, (&self.c-&self.a).x, (&self.a-&point).x);
         let second = geo::Vec3::<T>::new((&self.b-&self.a).y, (&self.c-&self.a).y, (&self.a-&point).y);
-        let cross = first.cross(&second);
-        let u = geo::Vec3f::new(cross.x.to_f64().unwrap(), cross.y.to_f64().unwrap(), cross.z.to_f64().unwrap());
+        let u = first.cross(&second).to_f64();
         if u.z.abs() < 1. {
             geo::Vec3f::new(-1., 1., 1.)
         } else {
@@ -169,13 +165,12 @@ impl<T> Triangle<T>
         }
     }
 
-    fn rasterize(&self, img: &image::RgbImage) -> Triangle<i32> {
-        let (imgx, imgy) = img.dimensions();
-        let (imgx, imgy) = (imgx-1, imgy-1);
+    fn rasterize(&self, dimx: u32, dimy: u32) -> Triangle<i32> {
         let mut vertices = vec::Vec::<geo::Vec3<i32>>::new();
-        for vert in self.vertices().into_iter() {
-            vertices.push(geo::Vec3::<i32>::new(((vert.x.to_f64().unwrap() + 1.)*0.5*(imgx as f64)) as i32,
-                                                ((vert.y.to_f64().unwrap() + 1.)*0.5*(imgy as f64)) as i32, 0));
+        for vert in self.vertices().iter() {
+            let vert = (*vert).to_f64();
+            vertices.push(geo::Vec3::<i32>::new(((vert.x + 1.)*0.5*(dimx as f64)) as i32,
+                                                ((vert.y + 1.)*0.5*(dimy as f64)) as i32, 0));
         }
         Triangle::new(vertices[0], vertices[1], vertices[2])
     }
@@ -184,6 +179,11 @@ impl<T> Triangle<T>
         let normal = (&self.c-&self.a).cross(&(&self.b-&self.a));
         normal.normalize()
     }
+
+    fn vertices(&self) -> [&geo::Vec3<T>; 3] {
+       [&self.a, &self.b, &self.c]
+    }
+
 }
 
 
@@ -192,9 +192,11 @@ impl<T> Polygon<T> for Triangle<T>
 {
 
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-        let (a, b, c) = match &self.edges.as_slice() {
-            [first, second, third] => (first, second, third),
-            _                      => unreachable!()
+        let (imgx, imgy) = img.dimensions();
+        let rast = self.rasterize(imgx-1, imgy-1);
+        let (a, b, c) = match &rast.edges {
+            [a, b, c] => (a, b, c),
+            _         => unreachable!()
         };
         a.draw(img, color);
         b.draw(img, color);
@@ -202,15 +204,15 @@ impl<T> Polygon<T> for Triangle<T>
     }
 
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-        let rast = self.rasterize(img);
         let (imgx, imgy) = img.dimensions();
-        let mut bbox_min = geo::Vec2::<i32>::new(0, 0);
-        let mut bbox_max = geo::Vec2::<i32>::new(imgx as i32 -1, imgy as i32 -1);
-        let clamp = bbox_max.clone();
+        let rast = self.rasterize(imgx, imgy);
+        let mut bbox_max = geo::Vec2::<i32>::new(0, 0);
+        let mut bbox_min = geo::Vec2::<i32>::new(imgx as i32 -1, imgy as i32 -1);
+        let clamp = geo::Vec2::<i32>::new(imgx as i32 -1, imgy as i32 -1);
         for vertex in rast.vertices().into_iter() {
             bbox_min.x = cmp::max(0, cmp::min(bbox_min.x, vertex.x));
             bbox_min.y = cmp::max(0, cmp::min(bbox_min.y, vertex.y));
-            bbox_max.x = cmp::min(clamp.x, cmp::max(bbox_max.x, vertex.y));
+            bbox_max.x = cmp::min(clamp.x, cmp::max(bbox_max.x, vertex.x));
             bbox_max.y = cmp::min(clamp.y, cmp::max(bbox_max.y, vertex.y));
         }
         let mut point = geo::Vec3::<i32>::new(0, 0, 0);
@@ -224,13 +226,9 @@ impl<T> Polygon<T> for Triangle<T>
         }
     }
 
-    fn vertices(&self) -> vec::Vec<&geo::Vec3<T>> {
-        vec![&self.a, &self.b, &self.c]
-    }
-
     fn inside(&self, point: &geo::Vec3<T>) -> bool {
-        let bc = self.barycentric(&point);
-        !(bc.x < 0. || bc.y < 0. || bc.z < 0.)
+        let geo::Vec3f{x, y, z} = self.barycentric(&point);
+        !(x < 0. || y < 0. || z < 0.)
     }
 
 }

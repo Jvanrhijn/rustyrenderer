@@ -1,14 +1,14 @@
 use std;
-use geo::Vector;
-use std::str::FromStr;
 use std::io;
+use std::vec;
+use std::str::FromStr;
 use std::io::BufReader;
 use std::fs::File;
-use std::vec;
-use geo;
 use std::io::prelude::*;
-use model;
 extern crate rand;
+use model;
+use geo;
+use geo::Vector;
 
 pub struct Obj {
     pub nvert: usize,
@@ -69,11 +69,6 @@ impl Obj {
         let bf = &self.vertices[face.y as usize];
         let cf = &self.vertices[face.z as usize];
         model::Triangle::new(*af, *bf, *cf)
-    }
-
-    pub fn light_intensity(triangle: &model::Triangle<f64>, direction: geo::Vec3f) -> f64 {
-        let normal = triangle.normal();
-        normal.dot(&direction.normalize())
     }
 
 }

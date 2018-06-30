@@ -1,8 +1,10 @@
 use std;
 use image;
-use geo;
-use model::Polygon;
 use obj;
+use geo;
+use geo::Vector;
+use model;
+use model::Polygon;
 
 pub struct Scene<'a> {
     objects: Vec<obj::Obj>,
@@ -20,6 +22,7 @@ impl<'a> Scene<'a> {
         self.objects.push(obj);
     }
 
+    #[allow(dead_code)]
     pub fn light_direction(&mut self, x: f64, y: f64, z: f64) {
         self.light_dir = geo::Vec3f::new(x, y, z).normalize();
     }
@@ -50,12 +53,18 @@ impl<'a> ObjRenderer<'a> {
     pub fn draw_lit(&self, img: &mut image::RgbImage, light_dir: geo::Vec3f) {
         for face in self.obj.faces.iter() {
             let triangle = self.obj.get_triangle(face);
-            let intensity = obj::Obj::light_intensity(&triangle, light_dir);
+            let intensity = ObjRenderer::light_intensity(&triangle, light_dir);
             if intensity > 0. {
                 let color = [(255.*intensity) as u8, (255.*intensity) as u8, (255.*intensity) as u8];
                 triangle.draw_filled(img, &color);
             }
         }
     }
+
+    pub fn light_intensity(triangle: &model::Triangle<f64>, direction: geo::Vec3f) -> f64 {
+        let normal = triangle.normal();
+        normal.dot(&direction.normalize())
+    }
+
 
 }

@@ -37,8 +37,11 @@ impl<T> Vec2<T>
 
     pub fn normalize(self) -> Vec2<f64> {
         let norm = self.norm();
-        let Vec2::<T>{x, y} = self;
-        Vec2::<f64>{x: x.to_f64().unwrap()/norm, y: y.to_f64().unwrap()/norm}
+        &self.to_f64()*(1./norm)
+    }
+
+    pub fn to_f64(&self) -> Vec2<f64> {
+        Vec2::<f64>{x: self.x.to_f64().unwrap(), y: self.y.to_f64().unwrap()}
     }
 
 }
@@ -130,6 +133,18 @@ impl<T> Vec3<T>
             panic!("Can only initialize Vec3 from std::Vec if std::Vec has 3 elements");
         }
         Vec3{x: vec[0].clone(), y: vec[1].clone(), z: vec[2].clone()}
+    }
+
+    pub fn to_f64(&self) -> Vec3<f64> {
+        Vec3::<f64>{x: self.x.to_f64().unwrap(), y: self.y.to_f64().unwrap(), z: self.z.to_f64().unwrap()}
+    }
+
+    pub fn to_i32(&self) -> Vec3<i32> {
+        Vec3::<i32>{x: self.x.to_i32().unwrap(), y: self.y.to_i32().unwrap(), z: self.z.to_i32().unwrap()}
+    }
+
+    pub fn to_u32(&self) -> Vec3<u32> {
+        Vec3::<u32>{x: self.x.to_u32().unwrap(), y: self.y.to_u32().unwrap(), z: self.z.to_u32().unwrap()}
     }
 
     pub fn normalize(self) -> Vec3<f64> {

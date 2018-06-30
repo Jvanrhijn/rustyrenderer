@@ -66,35 +66,14 @@ impl Obj {
         vec
     }
 
-    pub fn draw_wireframe(&self, mut img: &mut image::RgbImage, rgb: &[u8; 3]) {
-        let (imgx, imgy) = img.dimensions();
-        let (imgx, imgy) = (imgx-1, imgy-1);
-        for face in self.faces.iter() {
-            self.get_triangle(face).draw_filled(img, rgb);
-        }
-    }
-
-    pub fn draw_lit(&self, mut img: &mut image::RgbImage, light_dir: geo::Vec3f) {
-        let (imgx, imgy) = img.dimensions();
-        let (imgx, imgy) = (imgx-1, imgy-1);
-        for face in self.faces.iter() {
-            let triangle = self.get_triangle(face);
-            let intensity = Obj::light_intensity(&triangle, light_dir);
-            if intensity > 0. {
-                let color = [(255.*intensity) as u8, (255.*intensity) as u8, (255.*intensity) as u8];
-                triangle.draw_filled(img, &color);
-            }
-        }
-    }
-
-    fn get_triangle(&self, face: &geo::Vec3<i32>) -> model::Triangle<f64> {
+    pub fn get_triangle(&self, face: &geo::Vec3<i32>) -> model::Triangle<f64> {
         let af = &self.vertices[face.x as usize];
         let bf = &self.vertices[face.y as usize];
         let cf = &self.vertices[face.z as usize];
         model::Triangle::new(*af, *bf, *cf)
     }
 
-    fn light_intensity(triangle: &model::Triangle<f64>, direction: geo::Vec3f) -> f64 {
+    pub fn light_intensity(triangle: &model::Triangle<f64>, direction: geo::Vec3f) -> f64 {
         let normal = triangle.normal();
         normal.dot(&direction.normalize())
     }

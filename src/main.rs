@@ -1,7 +1,9 @@
 mod geo;
 mod model;
 mod obj;
+mod render;
 use model::Polygon;
+use std::vec::{Vec};
 extern crate image;
 
 fn main() {
@@ -10,9 +12,12 @@ fn main() {
 
     let mut imgbuf = image::RgbImage::new(imgx, imgy);
 
-    let head = obj::Obj::from_file("obj/diablo3_pose.obj").unwrap();
+    let mut scene = render::Scene::new(Vec::<obj::Obj>::new(), &mut imgbuf);
+    scene.add_object(obj::Obj::from_file("obj/diablo3_pose.obj").unwrap());
 
-    head.draw_lit(&mut imgbuf, geo::Vec3f::new(0., 0., -1.));
-    image::imageops::flip_vertical(&imgbuf).save("test.png").expect("Failed to save image");
+    scene.light_direction(1., 0., -1.);
+
+    scene.draw();
+    scene.save("test.png").expect("Failed to save image");
 }
 

@@ -1,8 +1,6 @@
 use std;
-use std::vec;
 use image;
 use geo;
-use model;
 use model::Polygon;
 use obj;
 
@@ -49,17 +47,7 @@ impl<'a> ObjRenderer<'a> {
         ObjRenderer{obj}
     }
 
-    pub fn draw_wireframe(&self, mut img: &mut image::RgbImage, rgb: &[u8; 3]) {
-        let (imgx, imgy) = img.dimensions();
-        let (imgx, imgy) = (imgx-1, imgy-1);
-        for face in self.obj.faces.iter() {
-            self.obj.get_triangle(face).draw_filled(img, rgb);
-        }
-    }
-
-    pub fn draw_lit(&self, mut img: &mut image::RgbImage, light_dir: geo::Vec3f) {
-        let (imgx, imgy) = img.dimensions();
-        let (imgx, imgy) = (imgx-1, imgy-1);
+    pub fn draw_lit(&self, img: &mut image::RgbImage, light_dir: geo::Vec3f) {
         for face in self.obj.faces.iter() {
             let triangle = self.obj.get_triangle(face);
             let intensity = obj::Obj::light_intensity(&triangle, light_dir);

@@ -1,7 +1,6 @@
 use std::cmp;
 use std::vec;
 use std::mem;
-use std::convert;
 extern crate num;
 use geo;
 use image;
@@ -51,12 +50,6 @@ impl<T> Polygon<T> for Line<T>
 {
 
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
-        // most of this code should go into iterator
-        let Line{start, end} = self;
-        let (mut x0, mut y0) = (start.x.to_u32().unwrap(), start.y.to_u32().unwrap());
-        let (mut x1, mut y1) = (end.x.to_u32().unwrap(), end.y.to_u32().unwrap());
-        let mut y = y0;
-        let mut x = x0;
         for pixel in self.iter() {
             let geo::Vec3i{x, y, z: _} = pixel;
             img.put_pixel(x as u32, y as u32, image::Rgb::<u8>(*color));
@@ -72,6 +65,11 @@ impl<T> Polygon<T> for Line<T>
     }
 
     fn inside(&self, point: &geo::Vec3<T>) -> bool {
+        for pixel in self.iter() {
+            if pixel.x == point.x.to_i32().unwrap() && pixel.y == point.y.to_i32().unwrap() {
+                return true;
+            }
+        }
         false
     }
 
@@ -108,8 +106,8 @@ impl LineIterator
             mem::swap(&mut x0, &mut x1);
             mem::swap(&mut y0, &mut y1);
         }
-        let dx = (x1 as i32 - x0 as i32);
-        let dy = (y1 as i32 - y0 as i32);
+        let dx = x1 as i32 - x0 as i32;
+        let dy = y1 as i32 - y0 as i32;
         let derror = dy.abs()*2;
         let oriented_line = Line::new(geo::Vec3::<u32>::new(x0, y0, 0),
                                                 geo::Vec3::<u32>::new(x1, y1, 0));

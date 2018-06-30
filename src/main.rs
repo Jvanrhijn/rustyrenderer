@@ -2,7 +2,6 @@ mod geo;
 mod model;
 mod obj;
 mod render;
-use model::Polygon;
 use std::vec::{Vec};
 extern crate image;
 

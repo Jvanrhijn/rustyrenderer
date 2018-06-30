@@ -1,16 +1,14 @@
 use std;
 use geo::Vector;
-extern crate rand;
-use std::vec;
-use std::io::prelude::*;
 use std::str::FromStr;
 use std::io;
 use std::io::BufReader;
 use std::fs::File;
+use std::vec;
 use geo;
-use image;
+use std::io::prelude::*;
 use model;
-use model::Polygon;
+extern crate rand;
 
 pub struct Obj {
     pub nvert: usize,

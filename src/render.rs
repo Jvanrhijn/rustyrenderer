@@ -1,21 +1,27 @@
 use std;
+use std::vec::{Vec};
 use image;
 use obj;
 use geo;
 use geo::Vector;
 use model;
 use model::Polygon;
+use std::f64::INFINITY;
+
 
 pub struct Scene<'a> {
     objects: Vec<obj::Obj>,
     light_dir: geo::Vec3f,
     img: &'a mut image::RgbImage,
+    zbuffer: Vec<f64>,
 }
 
 impl<'a> Scene<'a> {
 
     pub fn new(objects: Vec<obj::Obj>, img: &'a mut image::RgbImage) -> Scene {
-       Scene{objects, light_dir: geo::Vec3f::new(0., 0., -1.), img}
+        let (imgx, imgy) = img.dimensions();
+        Scene{objects, light_dir: geo::Vec3f::new(0., 0., -1.), img,
+           zbuffer: vec![-INFINITY; (imgx*imgy) as usize]}
     }
 
     pub fn add_object(&mut self, obj: obj::Obj) {
@@ -29,7 +35,7 @@ impl<'a> Scene<'a> {
 
     pub fn draw(&mut self) {
         for obj in (&self.objects).into_iter() {
-            ObjRenderer::new(obj).draw_lit(self.img, self.light_dir);
+            ObjRenderer::new(obj).draw_lit(self.img, self.light_dir, &mut self.zbuffer);
 
         }
     }
@@ -50,14 +56,12 @@ impl<'a> ObjRenderer<'a> {
         ObjRenderer{obj}
     }
 
-    pub fn draw_lit(&self, img: &mut image::RgbImage, light_dir: geo::Vec3f) {
+    pub fn draw_lit(&self, img: &mut image::RgbImage, light_dir: geo::Vec3f, zbuf: &mut Vec<f64>) {
         for face in self.obj.faces.iter() {
             let triangle = self.obj.get_triangle(face);
             let intensity = ObjRenderer::light_intensity(&triangle, light_dir);
-            if intensity > 0. {
-                let color = [(255.*intensity) as u8, (255.*intensity) as u8, (255.*intensity) as u8];
-                triangle.draw_filled(img, &color);
-            }
+            let color = [(255.*intensity) as u8, (255.*intensity) as u8, (255.*intensity) as u8];
+            triangle.draw_filled(img, &color, zbuf);
         }
     }
 
@@ -65,6 +69,5 @@ impl<'a> ObjRenderer<'a> {
         let normal = triangle.normal();
         normal.dot(&direction.normalize())
     }
-
 
 }

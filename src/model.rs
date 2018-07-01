@@ -1,15 +1,17 @@
 use std::cmp;
+use std::vec::{Vec};
 use std::vec;
 use std::mem;
 extern crate num;
 use geo;
+use geo::Vector;
 use image;
 
 pub trait Polygon<T>
 {
     fn draw(&self, img: &mut image::RgbImage, color: &[u8; 3]);
 
-    fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]);
+    fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3], zbuf: &mut Vec<f64>);
 
     fn inside(&self, point: &geo::Vec3<T>) -> bool;
 }
@@ -54,7 +56,7 @@ impl<T> Polygon<T> for Line<T>
         }
     }
 
-    fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
+    fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3], zbuf: &mut Vec<f64>) {
         self.draw(img, color);
     }
 
@@ -160,10 +162,11 @@ impl<T> Triangle<T>
         Triangle{a, b, c, edges: [ab, bc, ac]}
     }
 
-    pub fn barycentric(&self, point: &geo::Vec3<T>) -> geo::Vec3f {
-        let first = geo::Vec3::<T>::new((&self.b-&self.a).x, (&self.c-&self.a).x, (&self.a-&point).x);
-        let second = geo::Vec3::<T>::new((&self.b-&self.a).y, (&self.c-&self.a).y, (&self.a-&point).y);
-        let u = first.cross(&second).to_f64();
+    pub fn barycentric(&self, point: &geo::Vec3<f64>) -> geo::Vec3f {
+        let (a, b, c) = (self.a.to_f64(), self.b.to_f64(), self.c.to_f64());
+        let first = geo::Vec3::<f64>::new((&b-&a).x, (&c-&a).x, (&a-point).x);
+        let second = geo::Vec3::<f64>::new((&b-&a).y, (&c-&a).y, (&a-point).y);
+        let u = first.cross(&second);
         if u.z.abs() < 1. {
             geo::Vec3f::new(-1., 1., 1.)
         } else {
@@ -209,7 +212,7 @@ impl<T> Polygon<T> for Triangle<T>
         c.draw(img, color);
     }
 
-    fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3]) {
+    fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3], zbuf: &mut Vec<f64>) {
         let (imgx, imgy) = img.dimensions();
         let rast = self.rasterize(imgx, imgy);
         let mut bbox_max = geo::Vec2::<i32>::new(0, 0);
@@ -221,19 +224,27 @@ impl<T> Polygon<T> for Triangle<T>
             bbox_max.x = cmp::min(clamp.x, cmp::max(bbox_max.x, vertex.x));
             bbox_max.y = cmp::min(clamp.y, cmp::max(bbox_max.y, vertex.y));
         }
-        let mut point = geo::Vec3::<i32>::new(0, 0, 0);
+        let mut point = geo::Vec3::<f64>::new(0., 0., 0.);
         for x in bbox_min.x..bbox_max.x {
             for y in bbox_min.y..bbox_max.y {
-                point.x = x as i32; point.y = y;
-                if rast.inside(&point) {
-                    img.put_pixel(point.x as u32, point.y as u32, image::Rgb::<u8>(*color));
+                point.x = x as f64; point.y = y as f64;
+                if rast.inside(&point.to_i32()) {
+                    point.z = 0.;
+                    let barycentric = self.barycentric(&point).as_vec();
+                    for (i, vertex) in self.vertices().into_iter().enumerate() {
+                        point.z += vertex.to_f64().z*barycentric[i];
+                    }
+                    if zbuf[(point.x + point.y*(imgx as f64)) as usize] < point.z {
+                        zbuf[(point.x + point.y*(imgx as f64)) as usize] = point.z;
+                        img.put_pixel(point.x as u32, point.y as u32, image::Rgb::<u8>(*color));
+                    }
                 }
             }
         }
     }
 
     fn inside(&self, point: &geo::Vec3<T>) -> bool {
-        let geo::Vec3f{x, y, z} = self.barycentric(&point);
+        let geo::Vec3f{x, y, z} = self.barycentric(&point.to_f64());
         !(x < 0. || y < 0. || z < 0.)
     }
 

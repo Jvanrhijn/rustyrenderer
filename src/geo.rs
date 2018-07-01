@@ -20,6 +20,8 @@ pub trait Vector<'a, T>
     fn norm(&'a self) -> f64 {
         (self.dot(self).to_f64().unwrap()).sqrt()
     }
+
+    fn as_vec(&self) -> vec::Vec<T>;
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -107,6 +109,10 @@ impl<'a, T: 'a> Vector<'a, T> for Vec2<T>
             panic!("Can only initialize Vec2 from std::Vec if std::Vec has 2 elements");
         }
         Vec2::new(vec[0].clone(), vec[1].clone())
+    }
+
+    fn as_vec(&self) -> vec::Vec<T> {
+        vec![self.x, self.y]
     }
 
 }
@@ -230,6 +236,10 @@ impl<'a, T: 'a> Vector<'a, T> for Vec3<T>
             panic!("Can only initialize Vec3 from std::Vec if std::Vec has 3 elements");
         }
         Vec3::<T>::new(vec[0].clone(), vec[1].clone(), vec[2].clone())
+    }
+
+    fn as_vec(&self) -> vec::Vec<T> {
+        vec![self.x, self.y, self.z]
     }
 
 }

@@ -13,7 +13,7 @@ fn main() {
 
     let mut scene = render::Scene::new(Vec::<obj::Obj>::new(), &mut imgbuf);
     scene.add_object(obj::Obj::from_file("obj/african_head.obj").unwrap());
-
+    scene.light_direction(0., 0., -1.);
     scene.draw();
     scene.save("test.png").expect("Failed to save image");
 }

@@ -14,6 +14,8 @@ pub trait Polygon<T>
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3], zbuf: &mut Vec<f64>);
 
     fn inside(&self, point: &geo::Vec3<T>) -> bool;
+
+    fn bounding_box(&self, dimx: u32, dimy: u32) -> Line<i32>;
 }
 
 pub struct Line<T> {
@@ -68,6 +70,13 @@ impl<T> Polygon<T> for Line<T>
             }
         }
         false
+    }
+
+    fn bounding_box(&self, _dimx: u32, _dimy: u32) -> Line<i32> {
+        let Line{start, end} = self;
+        let start = start.to_i32();
+        let end = end.to_i32();
+        Line{start, end}
     }
 
 }
@@ -215,15 +224,7 @@ impl<T> Polygon<T> for Triangle<T>
     fn draw_filled(&self, img: &mut image::RgbImage, color: &[u8; 3], zbuf: &mut Vec<f64>) {
         let (imgx, imgy) = img.dimensions();
         let rast = self.rasterize(imgx, imgy);
-        let mut bbox_max = geo::Vec2::<i32>::new(0, 0);
-        let mut bbox_min = geo::Vec2::<i32>::new(imgx as i32 -1, imgy as i32 -1);
-        let clamp = geo::Vec2::<i32>::new(imgx as i32 -1, imgy as i32 -1);
-        for vertex in rast.vertices().into_iter() {
-            bbox_min.x = cmp::max(0, cmp::min(bbox_min.x, vertex.x));
-            bbox_min.y = cmp::max(0, cmp::min(bbox_min.y, vertex.y));
-            bbox_max.x = cmp::min(clamp.x, cmp::max(bbox_max.x, vertex.x));
-            bbox_max.y = cmp::min(clamp.y, cmp::max(bbox_max.y, vertex.y));
-        }
+        let Line{start: bbox_min, end: bbox_max} = self.bounding_box(imgx, imgy);
         let mut point = geo::Vec3::<f64>::new(0., 0., 0.);
         for x in bbox_min.x..bbox_max.x {
             for y in bbox_min.y..bbox_max.y {
@@ -246,6 +247,21 @@ impl<T> Polygon<T> for Triangle<T>
     fn inside(&self, point: &geo::Vec3<T>) -> bool {
         let geo::Vec3f{x, y, z} = self.barycentric(&point.to_f64());
         !(x < 0. || y < 0. || z < 0.)
+    }
+
+    fn bounding_box(&self, dimx: u32, dimy: u32) -> Line<i32> {
+        let rast =  self.rasterize(dimx, dimy);
+        let mut bbox_max = geo::Vec3::<i32>::new(0, 0, 0);
+        let mut bbox_min = geo::Vec3::<i32>::new(dimx as i32 -1, dimy as i32 -1, 0);
+        let clamp = geo::Vec2::<i32>::new(dimx as i32 -1, dimy as i32 -1);
+        for vertex in rast.vertices().into_iter() {
+            let vertex = vertex.to_i32();
+            bbox_min.x = cmp::max(0, cmp::min(bbox_min.x, vertex.x));
+            bbox_min.y = cmp::max(0, cmp::min(bbox_min.y, vertex.y));
+            bbox_max.x = cmp::min(clamp.x, cmp::max(bbox_max.x, vertex.x));
+            bbox_max.y = cmp::min(clamp.y, cmp::max(bbox_max.y, vertex.y));
+        }
+        Line{start: bbox_min, end: bbox_max}
     }
 
 }

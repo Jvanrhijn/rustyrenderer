@@ -60,8 +60,10 @@ impl<'a> ObjRenderer<'a> {
         for face in self.obj.faces.iter() {
             let triangle = self.obj.get_triangle(face);
             let intensity = ObjRenderer::light_intensity(&triangle, light_dir);
-            let color = [(255.*intensity) as u8, (255.*intensity) as u8, (255.*intensity) as u8];
-            triangle.draw_filled(img, &color, zbuf);
+            if intensity > 0. {
+                let color = [(255. * intensity) as u8, (255. * intensity) as u8, (255. * intensity) as u8];
+                triangle.draw_filled(img, &color, zbuf);
+            }
         }
     }
 

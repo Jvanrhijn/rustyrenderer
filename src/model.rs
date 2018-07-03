@@ -229,16 +229,17 @@ impl<T> Polygon<T> for Triangle<T>
         for x in bbox_min.x..bbox_max.x {
             for y in bbox_min.y..bbox_max.y {
                 point.x = x as f64; point.y = y as f64;
-                if rast.inside(&point.to_i32()) {
-                    point.z = 0.;
-                    let barycentric = self.barycentric(&point).as_vec();
-                    for (i, vertex) in self.vertices().into_iter().enumerate() {
-                        point.z += vertex.to_f64().z*barycentric[i];
-                    }
-                    if zbuf[(point.x + point.y*(imgx as f64)) as usize] < point.z {
-                        zbuf[(point.x + point.y*(imgx as f64)) as usize] = point.z;
-                        img.put_pixel(point.x as u32, point.y as u32, image::Rgb::<u8>(*color));
-                    }
+                if !rast.inside(&point.to_i32()) {
+                    continue;
+                }
+                point.z = 0.;
+                let barycentric = self.barycentric(&point).as_vec();
+                for (i, vertex) in self.vertices().into_iter().enumerate() {
+                    point.z += vertex.to_f64().z*barycentric[i];
+                }
+                if zbuf[(point.x + point.y*(imgx as f64)) as usize] < point.z {
+                    zbuf[(point.x + point.y*(imgx as f64)) as usize] = point.z;
+                    img.put_pixel(point.x as u32, point.y as u32, image::Rgb::<u8>(*color));
                 }
             }
         }

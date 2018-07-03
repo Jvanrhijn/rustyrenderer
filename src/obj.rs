@@ -30,8 +30,8 @@ impl Obj {
             }
             let prefix = &line[..2];
             match prefix {
-                "v " => vertices.push(geo::Vec3f::from_vec(&Obj::collect_vec::<f64>(&line))),
-                "f " => faces.push(geo::Vec3i::from_vec(&Obj::collect_face(&line))),
+                "v " => vertices.push(geo::Vec3f::from(&Obj::collect_vec::<f64>(&line))),
+                "f " => faces.push(geo::Vec3i::from(&Obj::collect_face(&line))),
                 _    => continue
             };
         }
@@ -46,14 +46,15 @@ impl Obj {
         self.vertices[i].clone()
     }
 
-    fn collect_vec<T>(s: &str) -> vec::Vec<T>
-        where T: FromStr,
+    fn collect_vec<T>(s: &str) -> [T; 3]
+        where T: FromStr + geo::Number<T>,
               <T as std::str::FromStr>::Err : std::fmt::Debug
     {
-        s[2..].split_whitespace().map(|x| x.parse::<T>().unwrap()).collect()
+        let v: Vec<T> = s[2..].split_whitespace().map(|x| x.parse::<T>().unwrap()).collect();
+        [v[0].clone(), v[1].clone(), v[2].clone()]
     }
 
-    fn collect_face(s: &str) -> vec::Vec<i32> {
+    fn collect_face(s: &str) -> [i32; 3] {
         let terms: Vec<&str> = s[2..].split_whitespace().collect();
         let mut vec = vec::Vec::<i32>::new();
         for i in 0..3 {
@@ -61,7 +62,8 @@ impl Obj {
                 .map(|x| x.parse::<i32>().unwrap());
             vec.push(indices.collect::<vec::Vec<i32>>()[0]-1); // indices in wavefront start with 1
         }
-        vec
+        let array: [i32; 3] = [vec[0], vec[1], vec[2]];
+        array
     }
 
     pub fn get_triangle(&self, face: &geo::Vec3<i32>) -> model::Triangle<f64> {

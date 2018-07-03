@@ -11,8 +11,6 @@ pub trait Vector<'a, T>
     where &'a Self: ops::Mul<&'a Self, Output=T> + 'a,
                  T: Number<T>
 {
-    fn from_vec(vec: &vec::Vec<T>) -> Self;
-
     fn dot(&'a self, other: &'a Self) -> T {
         self*other
     }
@@ -104,17 +102,18 @@ impl<'a, T: 'a> Vector<'a, T> for Vec2<T>
     where T: Number<T> + 'a
 {
 
-    fn from_vec(vec: &vec::Vec<T>) -> Vec2<T> {
-        if vec.len() != 2 {
-            panic!("Can only initialize Vec2 from std::Vec if std::Vec has 2 elements");
-        }
-        Vec2::new(vec[0].clone(), vec[1].clone())
-    }
-
     fn as_vec(&self) -> vec::Vec<T> {
         vec![self.x, self.y]
     }
 
+}
+
+impl<'a, T> From<&'a [T; 2]> for Vec2<T>
+    where T: Number<T>
+{
+    fn from(vec: &'a [T; 2]) -> Self {
+        Vec2::<T>::new(vec[0].clone(), vec[1].clone())
+    }
 }
 
 // Vec3 impl
@@ -134,13 +133,6 @@ impl<T> Vec3<T>
         Vec3{x, y, z}
     }
 
-    pub fn from_vec(vec: &vec::Vec<T>) -> Vec3<T> {
-        if vec.len() != 3 {
-            panic!("Can only initialize Vec3 from std::Vec if std::Vec has 3 elements");
-        }
-        Vec3{x: vec[0].clone(), y: vec[1].clone(), z: vec[2].clone()}
-    }
-
     pub fn to_f64(&self) -> Vec3<f64> {
         Vec3::<f64>{x: self.x.to_f64().unwrap(), y: self.y.to_f64().unwrap(), z: self.z.to_f64().unwrap()}
     }
@@ -154,13 +146,8 @@ impl<T> Vec3<T>
     }
 
     pub fn normalize(self) -> Vec3<f64> {
-        let norm = self.norm();
-        let Vec3::<T>{x, y, z} = self;
-        Vec3::<f64>{
-            x: x.to_f64().unwrap()/norm,
-            y: y.to_f64().unwrap()/norm,
-            z: z.to_f64().unwrap()/norm
-        }
+        let fself = self.to_f64();
+        (&fself)*(1./self.norm())
     }
 
     pub fn cross(&self, other: &Vec3<T>) -> Vec3<T> {
@@ -230,18 +217,18 @@ impl<'a, T: 'a> Vector<'a, T> for Vec3<T>
     where T: Number<T> + 'a
 {
 
-    fn from_vec(vec: &vec::Vec<T>) -> Vec3<T>
-    {
-        if vec.len() != 3 {
-            panic!("Can only initialize Vec3 from std::Vec if std::Vec has 3 elements");
-        }
-        Vec3::<T>::new(vec[0].clone(), vec[1].clone(), vec[2].clone())
-    }
-
     fn as_vec(&self) -> vec::Vec<T> {
         vec![self.x, self.y, self.z]
     }
 
+}
+
+impl<'a, T> From<&'a [T; 3]> for Vec3<T>
+    where T: Number<T>
+{
+   fn from(vec: &'a [T; 3]) -> Self {
+       Vec3::<T>::new(vec[0].clone(), vec[1].clone(), vec[2].clone())
+   }
 }
 
 // typedefs
@@ -256,7 +243,7 @@ mod test {
 
     #[test]
     fn from_vec() {
-        assert_eq!(Vec3f{x: 1., y: 2., z: 3.}, Vec3f::from_vec(&vec![1., 2., 3.]));
+        assert_eq!(Vec3f{x: 1., y: 2., z: 3.}, Vec3f::from(&[1., 2., 3.]));
     }
 
     #[test]
@@ -278,6 +265,7 @@ mod test {
         assert_eq!(Vec3f::new(1., 1., 1.).norm(), (3. as f64).sqrt());
     }
 
+    #[test]
     fn normalize() {
         assert_eq!(Vec3f::new(1., 1., 1.).normalize().norm(), 1 as f64);
     }

@@ -9,12 +9,14 @@ extern crate rand;
 use model;
 use geo;
 use geo::Vector;
+use image;
 
 pub struct Obj {
     pub nvert: usize,
     pub nfaces: usize,
     pub vertices: vec::Vec<geo::Vec3f>,
     pub faces: vec::Vec<geo::Vec3i>,
+    texture: Option<image::DynamicImage>,
 }
 
 impl Obj {
@@ -35,7 +37,12 @@ impl Obj {
                 _    => continue
             };
         }
-        Ok(Obj{nvert: vertices.len(), nfaces: faces.len(), vertices, faces})
+        Ok(Obj{nvert: vertices.len(), nfaces: faces.len(), vertices, faces, texture: None})
+    }
+
+    pub fn load_texture(mut self, path: &str) -> Self {
+        self.texture = Some(image::open(path).unwrap());
+        self
     }
 
     pub fn face(&self, i: usize) -> geo::Vec3i {

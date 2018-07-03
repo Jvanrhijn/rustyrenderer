@@ -32,7 +32,7 @@ impl<T> Line<T>
     }
 
     fn rasterize(&self, xdim: u32, ydim: u32) -> Line<u32> {
-        let (start, end) = (self.start.to_f64(), self.end.to_f64());
+        let (start, end) = (self.start.to_f64().unwrap(), self.end.to_f64().unwrap());
         let start = geo::Vec3::<u32>::new(((start.x + 1.)*0.5*(xdim as f64)) as u32,
                                           ((start.y + 1.)*0.5*(ydim as f64)) as u32, 0);
         let end = geo::Vec3::<u32>::new(((end.x + 1.)*0.5*(xdim as f64)) as u32,
@@ -63,7 +63,7 @@ impl<T> Polygon<T> for Line<T>
     }
 
     fn inside(&self, point: &geo::Vec3<T>) -> bool {
-        let point = point.to_i32();
+        let point = point.to_i32().unwrap();
         for pixel in self.into_iter() {
             if pixel.x == point.x && pixel.y == point.y {
                 return true;
@@ -74,8 +74,8 @@ impl<T> Polygon<T> for Line<T>
 
     fn bounding_box(&self, _dimx: u32, _dimy: u32) -> Line<i32> {
         let Line{start, end} = self;
-        let start = start.to_i32();
-        let end = end.to_i32();
+        let start = start.to_i32().unwrap();
+        let end = end.to_i32().unwrap();
         Line{start, end}
     }
 
@@ -172,7 +172,7 @@ impl<T> Triangle<T>
     }
 
     pub fn barycentric(&self, point: &geo::Vec3<f64>) -> geo::Vec3f {
-        let (a, b, c) = (self.a.to_f64(), self.b.to_f64(), self.c.to_f64());
+        let (a, b, c) = (self.a.to_f64().unwrap(), self.b.to_f64().unwrap(), self.c.to_f64().unwrap());
         let first = geo::Vec3::<f64>::new((&b-&a).x, (&c-&a).x, (&a-point).x);
         let second = geo::Vec3::<f64>::new((&b-&a).y, (&c-&a).y, (&a-point).y);
         let u = first.cross(&second);
@@ -186,7 +186,7 @@ impl<T> Triangle<T>
     fn rasterize(&self, dimx: u32, dimy: u32) -> Triangle<i32> {
         let mut vertices = vec::Vec::<geo::Vec3<i32>>::new();
         for vert in self.vertices().iter() {
-            let vert = (*vert).to_f64();
+            let vert = (*vert).to_f64().unwrap();
             vertices.push(geo::Vec3::<i32>::new(((vert.x + 1.)*0.5*(dimx as f64)) as i32,
                                                 ((vert.y + 1.)*0.5*(dimy as f64)) as i32, 0));
         }
@@ -229,13 +229,13 @@ impl<T> Polygon<T> for Triangle<T>
         for x in bbox_min.x..bbox_max.x {
             for y in bbox_min.y..bbox_max.y {
                 point.x = x as f64; point.y = y as f64;
-                if !rast.inside(&point.to_i32()) {
+                if !rast.inside(&point.to_i32().unwrap()) {
                     continue;
                 }
                 point.z = 0.;
-                let barycentric = self.barycentric(&point).as_vec();
+                let barycentric: [f64; 3] = self.barycentric(&point).into();
                 for (i, vertex) in self.vertices().into_iter().enumerate() {
-                    point.z += vertex.to_f64().z*barycentric[i];
+                    point.z += vertex.to_f64().unwrap().z*barycentric[i];
                 }
                 if zbuf[(point.x + point.y*(imgx as f64)) as usize] < point.z {
                     zbuf[(point.x + point.y*(imgx as f64)) as usize] = point.z;
@@ -246,7 +246,7 @@ impl<T> Polygon<T> for Triangle<T>
     }
 
     fn inside(&self, point: &geo::Vec3<T>) -> bool {
-        let geo::Vec3f{x, y, z} = self.barycentric(&point.to_f64());
+        let geo::Vec3f{x, y, z} = self.barycentric(&point.to_f64().unwrap());
         !(x < 0. || y < 0. || z < 0.)
     }
 
@@ -256,7 +256,7 @@ impl<T> Polygon<T> for Triangle<T>
         let mut bbox_min = geo::Vec3::<i32>::new(dimx as i32 -1, dimy as i32 -1, 0);
         let clamp = geo::Vec2::<i32>::new(dimx as i32 -1, dimy as i32 -1);
         for vertex in rast.vertices().into_iter() {
-            let vertex = vertex.to_i32();
+            let vertex = vertex.to_i32().unwrap();
             bbox_min.x = cmp::max(0, cmp::min(bbox_min.x, vertex.x));
             bbox_min.y = cmp::max(0, cmp::min(bbox_min.y, vertex.y));
             bbox_max.x = cmp::min(clamp.x, cmp::max(bbox_max.x, vertex.x));

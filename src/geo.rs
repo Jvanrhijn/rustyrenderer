@@ -18,8 +18,6 @@ pub trait Vector<'a, T>
     fn norm(&'a self) -> f64 {
         (self.dot(self).to_f64().unwrap()).sqrt()
     }
-
-    fn as_vec(&self) -> vec::Vec<T>;
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -46,6 +44,7 @@ impl<T> Vec2<T>
 
 }
 
+impl<'a, T: 'a> Vector<'a, T> for Vec2<T> where T: Number<T> {}
 
 impl<'a, 'b, T> ops::Add<&'b Vec2<T>> for Vec2<T>
     where T: Number<T>
@@ -98,16 +97,6 @@ impl<T: fmt::Display> fmt::Display for Vec2<T> {
     }
 }
 
-impl<'a, T: 'a> Vector<'a, T> for Vec2<T>
-    where T: Number<T> + 'a
-{
-
-    fn as_vec(&self) -> vec::Vec<T> {
-        vec![self.x, self.y]
-    }
-
-}
-
 impl<'a, T> From<&'a [T; 2]> for Vec2<T>
     where T: Number<T>
 {
@@ -133,20 +122,29 @@ impl<T> Vec3<T>
         Vec3{x, y, z}
     }
 
-    pub fn to_f64(&self) -> Vec3<f64> {
-        Vec3::<f64>{x: self.x.to_f64().unwrap(), y: self.y.to_f64().unwrap(), z: self.z.to_f64().unwrap()}
+    pub fn to_f64(&self) -> Option<Vec3<f64>> {
+        let x = self.x.to_f64()?;
+        let y = self.y.to_f64()?;
+        let z = self.z.to_f64()?;
+        Some(Vec3::<f64>{x, y, z})
     }
 
-    pub fn to_i32(&self) -> Vec3<i32> {
-        Vec3::<i32>{x: self.x.to_i32().unwrap(), y: self.y.to_i32().unwrap(), z: self.z.to_i32().unwrap()}
+    pub fn to_i32(&self) -> Option<Vec3<i32>> {
+        let x = self.x.to_i32()?;
+        let y = self.y.to_i32()?;
+        let z = self.z.to_i32()?;
+        Some(Vec3::<i32>{x, y, z})
     }
 
-    pub fn to_u32(&self) -> Vec3<u32> {
-        Vec3::<u32>{x: self.x.to_u32().unwrap(), y: self.y.to_u32().unwrap(), z: self.z.to_u32().unwrap()}
+    pub fn to_u32(&self) -> Option<Vec3<u32>> {
+        let x = self.x.to_u32()?;
+        let y = self.y.to_u32()?;
+        let z = self.z.to_u32()?;
+        Some(Vec3::<u32>{x, y, z})
     }
 
     pub fn normalize(self) -> Vec3<f64> {
-        let fself = self.to_f64();
+        let fself = self.to_f64().expect("Failed to convert vector to f64");
         (&fself)*(1./self.norm())
     }
 
@@ -158,6 +156,8 @@ impl<T> Vec3<T>
     }
 
 }
+
+impl<'a, T: 'a> Vector<'a, T> for Vec3<T> where T: Number<T> {}
 
 impl<'a, 'b, T> ops::Add<&'b Vec3<T>> for &'a Vec3<T>
     where T: Number<T>
@@ -213,22 +213,21 @@ impl<T: fmt::Display> fmt::Display for Vec3<T> {
     }
 }
 
-impl<'a, T: 'a> Vector<'a, T> for Vec3<T>
-    where T: Number<T> + 'a
-{
-
-    fn as_vec(&self) -> vec::Vec<T> {
-        vec![self.x, self.y, self.z]
-    }
-
-}
-
 impl<'a, T> From<&'a [T; 3]> for Vec3<T>
     where T: Number<T>
 {
    fn from(vec: &'a [T; 3]) -> Self {
        Vec3::<T>::new(vec[0].clone(), vec[1].clone(), vec[2].clone())
    }
+}
+
+impl<T> Into<[T; 3]> for Vec3<T>
+    where T: Number<T>
+{
+    fn into(self) -> [T; 3] {
+        let array: [T; 3] = [self.x, self.y, self.z];
+        array
+    }
 }
 
 // typedefs
@@ -242,8 +241,15 @@ mod test {
     use super::*;
 
     #[test]
-    fn from_vec() {
+    fn from_array() {
         assert_eq!(Vec3f{x: 1., y: 2., z: 3.}, Vec3f::from(&[1., 2., 3.]));
+    }
+
+    #[test]
+    fn into_array() {
+        let v = Vec3f::new(1., 2., 3.);
+        let a: [f64; 3] = v.into();
+        assert_eq!([1., 2., 3.], a);
     }
 
     #[test]

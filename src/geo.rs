@@ -5,7 +5,12 @@ use std::fmt;
 
 
 pub trait Number<T>: Copy + num::Num + num::Bounded + num::NumCast + PartialOrd + Clone {}
-impl<T> Number<T> for T where T: Copy + num::Num + num::Bounded + num::NumCast + PartialOrd + Clone {}
+impl<T> Number<T> for T where T: Copy
+        + num::Num
+        + num::Bounded
+        + num::NumCast
+        + PartialOrd
+        + Clone {}
 
 pub trait Vector<'a, T>
     where &'a Self: ops::Mul<&'a Self, Output=T> + 'a,

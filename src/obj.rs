@@ -16,7 +16,8 @@ pub struct Obj {
     pub nfaces: usize,
     pub vertices: vec::Vec<geo::Vec3f>,
     pub faces: vec::Vec<geo::Vec3i>,
-    texture: Option<image::DynamicImage>,
+    pub textures: vec::Vec<geo::Vec3f>,
+    texture_img: Option<image::DynamicImage>,
 }
 
 impl Obj {
@@ -25,6 +26,7 @@ impl Obj {
         let buf_reader = BufReader::new(file);
         let mut vertices = vec::Vec::<geo::Vec3f>::new();
         let mut faces = vec::Vec::<geo::Vec3i>::new();
+        let mut textures = vec::Vec::<geo::Vec3f>::new();
         for line in buf_reader.lines() {
             let line = line.unwrap();
             if line.len() < 3 {
@@ -34,14 +36,16 @@ impl Obj {
             match prefix {
                 "v " => vertices.push(geo::Vec3f::from(&Obj::collect_vec::<f64>(&line))),
                 "f " => faces.push(geo::Vec3i::from(&Obj::collect_face(&line))),
+                "vt" => textures.push(geo::Vec3f::from(&Obj::collect_vec::<f64>(&line))),
                 _    => continue
             };
         }
-        Ok(Obj{nvert: vertices.len(), nfaces: faces.len(), vertices, faces, texture: None})
+        Ok(Obj{nvert: vertices.len(), nfaces: faces.len(), 
+            vertices, faces, textures, texture_img: None})
     }
 
     pub fn load_texture(mut self, path: &str) -> Self {
-        self.texture = Some(image::open(path).unwrap());
+        self.texture_img = Some(image::open(path).unwrap());
         self
     }
 
